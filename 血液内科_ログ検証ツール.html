@@ -159,8 +159,8 @@ async function verifyCSV(text, filename){
     const m10 = ln.match(/^総試行回数,(.*)$/); if(m10) meta.attempts = m10[1];
     const m11 = ln.match(/^正答率,(.*)$/); if(m11) meta.accuracy = m11[1];
     const m12 = ln.match(/^未正解問題数,(.*)$/); if(m12) meta.pending = m12[1];
-    // 分野別習熟度の解析
-    if(ln.startsWith('--- 分野別習熟度')) { inRadar = true; continue; }
+    // 分野別一発正解率の解析
+    if(ln.startsWith('--- 分野別一発正解率') || ln.startsWith('--- 分野別習熟度')) { inRadar = true; continue; }
     if(ln.startsWith('---') && inRadar) { inRadar = false; }
     if(inRadar){
       const rm = ln.match(/^"([^"]+)",(\d+),(\d+),(\d+)$/);
@@ -175,7 +175,7 @@ async function verifyCSV(text, filename){
   // 分野別スコアのミニバーチャート
   let radarHtml = '';
   if(radarScores.length > 0){
-    radarHtml = '<tr><th colspan="2" style="background:#eaf2f8;text-align:center;font-size:13px;">📊 分野別習熟度</th></tr>';
+    radarHtml = '<tr><th colspan="2" style="background:#eaf2f8;text-align:center;font-size:13px;">📊 分野別 一発正解率</th></tr>';
     radarScores.forEach(sc=>{
       const color = sc.pct >= 70 ? '#27ae60' : sc.pct >= 40 ? '#f39c12' : '#c0392b';
       radarHtml += `<tr><th style="font-size:12px">${escapeHtml(sc.name)}</th><td>

@@ -2682,7 +2682,7 @@ function renderSectionComplete(){
       </div>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
         <button id="go-next" style="background:#27ae60;min-height:48px;font-size:15px;padding:12px 28px;">次のセクションへ ▶</button>
-        <button id="show-mid-radar" style="background:#3498db;min-height:48px;font-size:14px;padding:12px 20px;">📊 現在の習熟度を確認</button>
+        <button id="show-mid-radar" style="background:#3498db;min-height:48px;font-size:14px;padding:12px 20px;">📊 現在の一発正解率を確認</button>
       </div>
     </div>`;
 
@@ -2718,17 +2718,17 @@ function renderMidRadarScreen(){
         </div>
       </td>
       <td style="text-align:center;font-weight:bold;font-size:13px;">${sc.pct}%</td>
-      <td style="text-align:center;font-size:12px;color:#7f8c8d;">${sc.totalMastered}/${sc.totalQ}</td>
+      <td style="text-align:center;font-size:12px;color:#7f8c8d;">${sc.correctFirstTry}/${sc.attemptedQ}</td>
     </tr>`;
   });
 
   main.innerHTML = `
     <div class="radar-container">
-      <h2 style="color:#2c3e50;">📊 現在の習熟度（途中経過）</h2>
+      <h2 style="color:#2c3e50;">📊 分野別 一発正解率（途中経過）</h2>
       <div class="meta">全体進捗: <b>${completedCount} / ${TOPICS.length}</b> セクション完了</div>
       ${svgChart}
       <table style="width:100%;border-collapse:collapse;margin:16px 0;">
-        <tr style="background:#f8f9fa;"><th style="padding:6px 8px;text-align:left;font-size:12px;">分野</th><th style="padding:6px 8px;">習熟度</th><th style="padding:6px 8px;font-size:12px;">スコア</th><th style="padding:6px 8px;font-size:12px;">正解/出題</th></tr>
+        <tr style="background:#f8f9fa;"><th style="padding:6px 8px;text-align:left;font-size:12px;">分野</th><th style="padding:6px 8px;">一発正解率</th><th style="padding:6px 8px;font-size:12px;">スコア</th><th style="padding:6px 8px;font-size:12px;">一発正解/解答数</th></tr>
         ${scoreRows}
       </table>
       <div style="margin-top:16px;">
@@ -2761,6 +2761,7 @@ function nextTopic(){
 function computeRadarScores(){
   const scores = RADAR_CATEGORIES.map(cat=>{
     let totalQ = 0;
+    let attemptedQ = 0;
     let correctFirstTry = 0;
     let totalMastered = 0;
     const validSections = cat.sections.filter(s => s < TOPICS.length);
@@ -2770,14 +2771,16 @@ function computeRadarScores(){
         const key = `${sIdx}-${qIdx}`;
         totalQ++;
         if(answerLog[key]){
+          attemptedQ++;
           if(answerLog[key].masteredAt) totalMastered++;
           if(answerLog[key].firstTry) correctFirstTry++;
         }
       });
     });
-    // Score = mastered / total * 100 (weighted: first-try counts more)
-    const pct = totalQ > 0 ? Math.round(totalMastered / totalQ * 100) : 0;
-    return { ...cat, validSections, totalQ, correctFirstTry, totalMastered, pct };
+    // スコア = 一発正解率（解答済み問題のうち一発正解の割合）
+    // 未着手の問題はスコア計算に含めない（0%ではなく「未着手」として扱う）
+    const pct = attemptedQ > 0 ? Math.round(correctFirstTry / attemptedQ * 100) : 0;
+    return { ...cat, validSections, totalQ, attemptedQ, correctFirstTry, totalMastered, pct };
   });
   return scores;
 }
@@ -2906,7 +2909,7 @@ function renderRadarScreen(){
 
   main.innerHTML = `
     <div class="radar-container">
-      <div class="radar-title">📊 分野別習熟度レーダーチャート</div>
+      <div class="radar-title">📊 分野別 一発正解率レーダーチャート</div>
       ${renderRadarChart(scores)}
       <div class="radar-legend">
         ${scores.map(sc=>`<div class="legend-item"><div class="legend-dot" style="background:${sc.color}"></div>${escapeHtml(sc.name)}: ${sc.pct}%</div>`).join('')}
@@ -3120,7 +3123,7 @@ function renderRemediationComplete(){
 
   main.innerHTML = `
     <div class="radar-container">
-      <div class="radar-title">📊 弱点補強後 分野別習熟度レーダーチャート</div>
+      <div class="radar-title">📊 弱点補強後 分野別 一発正解率レーダーチャート</div>
       ${renderRadarChart(scores)}
       <div class="radar-legend">
         ${scores.map(sc=>`<div class="legend-item"><div class="legend-dot" style="background:${sc.color}"></div>${escapeHtml(sc.name)}: ${sc.pct}%</div>`).join('')}
@@ -3281,10 +3284,10 @@ async function exportLogCSV(returnOnly){
   const scores = computeRadarScores();
   if(scores && scores.length > 0){
     lines.push('');
-    lines.push('--- 分野別習熟度 ---');
-    lines.push(['分野','スコア(%)','問題数','正解数'].join(','));
+    lines.push('--- 分野別一発正解率 ---');
+    lines.push(['分野','一発正解率(%)','解答数','一発正解数'].join(','));
     scores.forEach(sc=>{
-      lines.push([`"${sc.name}"`,sc.pct,sc.totalQ,sc.totalMastered].join(','));
+      lines.push([`"${sc.name}"`,sc.pct,sc.attemptedQ,sc.correctFirstTry].join(','));
     });
   }
 
