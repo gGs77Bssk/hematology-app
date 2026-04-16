@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>血液内科 学習ログ 改ざん検証ツール（指導医用）</title>
+<style>
+  body { font-family: "Yu Gothic UI","Meiryo",sans-serif; background:#f4f6f8; color:#2c3e50; max-width:900px; margin:20px auto; padding:0 16px;}
+  h1 { color:#c0392b; border-bottom:3px solid #f1c40f; padding-bottom:8px;}
+  .note { background:#fef9e7; border-left:4px solid #f1c40f; padding:12px 16px; border-radius:4px; font-size:13px; margin:14px 0;}
+  .drop-zone { border:3px dashed #d4ac0d; border-radius:12px; padding:40px 20px; text-align:center; background:#fffdf3; margin:20px 0; transition:all .2s;}
+  .drop-zone.hover { background:#fef5d8; border-color:#b9770e;}
+  .drop-zone p { margin:6px 0;}
+  .drop-zone .big { font-size:18px; font-weight:bold; color:#7d6608;}
+  input[type=file] { margin-top:10px;}
+  .result { padding:16px 20px; border-radius:8px; margin:14px 0; font-size:14px;}
+  .result.ok { background:#d4efdf; border:2px solid #27ae60; color:#196f3d;}
+  .result.ng { background:#fadbd8; border:2px solid #c0392b; color:#922b21;}
+  .result.info { background:#eaf2f8; border:2px solid #3498db; color:#1b4f72;}
+  .result h2 { margin:0 0 8px 0; font-size:20px;}
+  .meta-table { width:100%; border-collapse:collapse; margin:12px 0; font-size:13px;}
+  .meta-table th, .meta-table td { border:1px solid #d5dbdb; padding:6px 10px; text-align:left;}
+  .meta-table th { background:#f8f9fa; width:30%; color:#566573;}
+  pre { background:#fff; border:1px solid #d5dbdb; border-radius:4px; padding:10px; font-size:11px; max-height:300px; overflow:auto; white-space:pre-wrap; word-break:break-all;}
+  details { margin-top:14px;}
+  summary { cursor:pointer; font-weight:bold; color:#7d6608;}
+  .warn { color:#c0392b; font-weight:bold;}
+  .hex { font-family:monospace; font-size:11px; word-break:break-all; background:#f8f9fa; padding:4px 6px; border-radius:3px;}
+  .badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:bold; margin-left:4px;}
+  .badge.ok { background:#27ae60; color:#fff;}
+  .badge.ng { background:#c0392b; color:#fff;}
+</style>
+</head>
+<body>
+
+<h1>🔒 血液内科 学習ログ 改ざん検証ツール</h1>
+<p style="color:#566573">指導医用 / 学生から提出された学習ログCSVファイルの改ざんを検出します。</p>
+
+<div class="note">
+  <b>📋 使い方</b><br>
+  ① 学生から届いたCSVファイルを下の欄に <b>ドラッグ＆ドロップ</b> するか、ファイル選択ボタンで指定してください。<br>
+  ② このツールがCSV末尾の HMAC-SHA256 署名を検証し、<b>改ざんの有無を自動判定</b>します。<br>
+  ③ 検証はこのブラウザ内で完結し、ファイルはどこにも送信されません（完全オフライン動作）。
+</div>
+
+<div class="drop-zone" id="drop-zone">
+  <p class="big">📥 ここにCSVファイルをドラッグ＆ドロップ</p>
+  <p>または</p>
+  <input type="file" id="file-input" accept=".csv,text/csv">
+</div>
+
+<div id="result-area"></div>
+
+<details>
+  <summary>ℹ️ 技術的な仕組みについて</summary>
+  <div style="font-size:12px; color:#566573; line-height:1.6; margin-top:8px;">
+    <b>署名方式</b>: HMAC-SHA256 (RFC 2104)<br>
+    <b>秘密鍵</b>: 学習ツール本体 (血液内科_学習ツール_v2.html) と本ツールの両方に埋め込まれた共通鍵<br>
+    <b>署名対象</b>: CSVの学籍情報・サマリー・問題別ログ・試行履歴すべて (BOM と 署名行を除く)<br>
+    <b>検証手順</b>:
+    <ol>
+      <li>CSV末尾の「HMAC-SHA256,&lt;hex&gt;」行を抽出</li>
+      <li>署名行を除いた本文をUTF-8で正規化</li>
+      <li>共通鍵でHMAC-SHA256を再計算</li>
+      <li>提出された署名と再計算した署名をバイト単位で比較</li>
+    </ol>
+    <span class="warn">※ 本仕組みは Excel 等による素人改ざんを確実に検出しますが、
+    HTMLソースを読んで秘密鍵を抽出する高度な攻撃には耐えられません。
+    運用では秘密鍵を定期的に更新することを推奨します。</span>
+  </div>
+</details>
+
+<script>
+/* ===== 学習ツール本体と同じ秘密鍵 =====
+   ※本体 (血液内科_学習ツール_v2.html) の HMAC_SECRET_KEY と
+     必ず同じ値にしてください。不一致だと全ログが「改ざん検出」と判定されます。*/
+const HMAC_SECRET_KEY = 'BloodHemeKoku6-2024-SignatureKey-CHANGE-ME-FOR-PRODUCTION';
+
+async function hmacSha256Hex(key, msg){
+  const enc = new TextEncoder();
+  const k = await crypto.subtle.importKey(
+    'raw', enc.encode(key),
+    {name:'HMAC', hash:'SHA-256'},
+    false, ['sign']
+  );
+  const sig = await crypto.subtle.sign('HMAC', k, enc.encode(msg));
+  return Array.from(new Uint8Array(sig))
+    .map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+async function verifyCSV(text, filename){
+  const resultArea = document.getElementById('result-area');
+  resultArea.innerHTML = '<div class="result info">🔍 検証中...</div>';
+
+  // BOMを除去
+  if(text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+
+  // 改行を正規化 (CRLF/CR → LF)
+  text = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
+
+  const lines = text.split('\n');
+
+  // 末尾の空行を無視して、最後の非空行が署名行かチェック
+  let sigLineIdx = -1;
+  let providedSig = null;
+  for(let i=lines.length-1; i>=0; i--){
+    const ln = lines[i].trim();
+    if(ln === '') continue;
+    const m = ln.match(/^HMAC-SHA256,([0-9a-f]{64})$/i);
+    if(m){ sigLineIdx = i; providedSig = m[1].toLowerCase(); }
+    break;
+  }
+
+  if(sigLineIdx === -1){
+    resultArea.innerHTML = `
+      <div class="result ng">
+        <h2>❌ 署名が見つかりません</h2>
+        <p>このCSVには HMAC-SHA256 署名行がありません。以下のいずれかが考えられます:</p>
+        <ul>
+          <li>学生が<span class="warn">署名行を削除した</span> (改ざんの可能性大)</li>
+          <li>署名機能がない旧バージョンの学習ツールで生成された</li>
+          <li>そもそも学習ツールから出力されたファイルではない</li>
+        </ul>
+      </div>`;
+    return;
+  }
+
+  // 署名行の直前の区切り「--- 改ざん検出署名 ---」行も除外
+  // 署名検証対象 = 0 .. (sigLineIdx-1) のうち、最後の空行と区切り行を除いたもの
+  let payloadEnd = sigLineIdx;
+  // 直前のヘッダ「--- 改ざん検出署名 (削除・編集しないでください) ---」を除外
+  while(payloadEnd > 0 && (lines[payloadEnd-1].startsWith('--- 改ざん検出署名') || lines[payloadEnd-1].trim()==='')){
+    payloadEnd--;
+  }
+  // ちょうど元のpayloadは lines[0..payloadEnd-1] を '\n' で結合したもの
+  const payload = lines.slice(0, payloadEnd).join('\n');
+
+  // HMAC 再計算
+  const recomputedSig = await hmacSha256Hex(HMAC_SECRET_KEY, payload);
+
+  // メタデータ抽出 (学籍番号・氏名・出力日時・分野別スコア・弱点補強)
+  const meta = {};
+  const radarScores = [];
+  let hasRemediation = false;
+  let inRadar = false;
+  for(const ln of lines){
+    const m1 = ln.match(/^出力日時,(.*)$/); if(m1) meta.date = m1[1].replace(/"/g,'');
+    const m2 = ln.match(/^学籍番号,"?([^"]*)"?$/); if(m2) meta.id = m2[1];
+    const m3 = ln.match(/^氏名,"?([^"]*)"?$/); if(m3) meta.name = m3[1];
+    const m4 = ln.match(/^所属,"?([^"]*)"?$/); if(m4) meta.affiliation = m4[1];
+    const m5 = ln.match(/^完全習得セクション数,(.*)$/); if(m5) meta.sections = m5[1];
+    const m6 = ln.match(/^着手問題数,(.*)$/); if(m6) meta.total = m6[1];
+    const m7 = ln.match(/^正解済問題数,(.*)$/); if(m7) meta.mastered = m7[1];
+    const m8 = ln.match(/^一発正解数,(.*)$/); if(m8) meta.firstTry = m8[1];
+    const m9 = ln.match(/^誤答経て正解数,(.*)$/); if(m9) meta.struggled = m9[1];
+    const m10 = ln.match(/^総試行回数,(.*)$/); if(m10) meta.attempts = m10[1];
+    const m11 = ln.match(/^正答率,(.*)$/); if(m11) meta.accuracy = m11[1];
+    const m12 = ln.match(/^未正解問題数,(.*)$/); if(m12) meta.pending = m12[1];
+    // 分野別習熟度の解析
+    if(ln.startsWith('--- 分野別習熟度')) { inRadar = true; continue; }
+    if(ln.startsWith('---') && inRadar) { inRadar = false; }
+    if(inRadar){
+      const rm = ln.match(/^"([^"]+)",(\d+),(\d+),(\d+)$/);
+      if(rm) radarScores.push({name:rm[1], pct:parseInt(rm[2]), totalQ:parseInt(rm[3]), mastered:parseInt(rm[4])});
+    }
+    // 弱点補強ログの有無
+    if(ln.startsWith('--- 弱点補強')) hasRemediation = true;
+  }
+
+  const ok = (recomputedSig === providedSig);
+
+  // 分野別スコアのミニバーチャート
+  let radarHtml = '';
+  if(radarScores.length > 0){
+    radarHtml = '<tr><th colspan="2" style="background:#eaf2f8;text-align:center;font-size:13px;">📊 分野別習熟度</th></tr>';
+    radarScores.forEach(sc=>{
+      const color = sc.pct >= 70 ? '#27ae60' : sc.pct >= 40 ? '#f39c12' : '#c0392b';
+      radarHtml += `<tr><th style="font-size:12px">${escapeHtml(sc.name)}</th><td>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;background:#ecf0f1;border-radius:4px;height:16px;overflow:hidden;">
+            <div style="width:${sc.pct}%;height:100%;background:${color};border-radius:4px;transition:width .3s;"></div>
+          </div>
+          <span style="font-size:12px;font-weight:bold;min-width:42px;">${sc.pct}%</span>
+          <span style="font-size:11px;color:#7f8c8d;">(${sc.mastered}/${sc.totalQ})</span>
+        </div>
+      </td></tr>`;
+    });
+  }
+
+  const metaTable = `
+    <table class="meta-table">
+      <tr><th>ファイル名</th><td>${escapeHtml(filename)}</td></tr>
+      <tr><th>学籍番号</th><td>${escapeHtml(meta.id||'(不明)')}</td></tr>
+      <tr><th>氏名</th><td>${escapeHtml(meta.name||'(不明)')}</td></tr>
+      <tr><th>所属</th><td>${escapeHtml(meta.affiliation||'(なし)')}</td></tr>
+      <tr><th>出力日時</th><td>${escapeHtml(meta.date||'(不明)')}</td></tr>
+      <tr><th>完全習得セクション</th><td>${escapeHtml(meta.sections||'-')}</td></tr>
+      <tr><th>着手問題数</th><td>${escapeHtml(meta.total||'-')}</td></tr>
+      <tr><th>正解済/一発正解/誤答後正解</th><td>${escapeHtml(meta.mastered||'-')} / ${escapeHtml(meta.firstTry||'-')} / ${escapeHtml(meta.struggled||'-')}</td></tr>
+      <tr><th>未正解問題数</th><td>${escapeHtml(meta.pending||'-')}</td></tr>
+      <tr><th>総試行回数</th><td>${escapeHtml(meta.attempts||'-')}</td></tr>
+      <tr><th>正答率</th><td>${escapeHtml(meta.accuracy||'-')}</td></tr>
+      <tr><th>弱点補強</th><td>${hasRemediation ? '<span style="color:#c0392b;font-weight:bold;">⚡ 弱点補強問題あり（詳細はCSV内）</span>' : '<span style="color:#7f8c8d;">なし（弱点なし、または未実施）</span>'}</td></tr>
+      ${radarHtml}
+    </table>
+  `;
+
+  if(ok){
+    resultArea.innerHTML = `
+      <div class="result ok">
+        <h2>✅ 検証成功 — 改ざんは検出されませんでした</h2>
+        <p>このCSVは学習ツールから出力された後、<b>一切編集されていません</b>。内容は信頼できます。</p>
+        ${metaTable}
+        <details>
+          <summary>署名詳細を表示</summary>
+          <p>提出された署名: <span class="hex">${providedSig}</span></p>
+          <p>再計算した署名: <span class="hex">${recomputedSig}</span></p>
+          <p>一致: <span class="badge ok">OK</span></p>
+        </details>
+      </div>`;
+  } else {
+    resultArea.innerHTML = `
+      <div class="result ng">
+        <h2>❌ 改ざん検出 — 署名が一致しません</h2>
+        <p class="warn">このCSVは学習ツールから出力された後に<b>内容が書き換えられた</b>可能性があります。
+        もしくは、学習ツール本体と本検証ツールの秘密鍵が異なっている可能性もあります。</p>
+        ${metaTable}
+        <details open>
+          <summary>署名詳細を表示</summary>
+          <p>提出された署名: <span class="hex">${providedSig}</span></p>
+          <p>再計算した署名: <span class="hex">${recomputedSig}</span></p>
+          <p>一致: <span class="badge ng">NG</span></p>
+        </details>
+        <details>
+          <summary>署名対象となったpayload(改行で区切ったCSV本文)</summary>
+          <pre>${escapeHtml(payload)}</pre>
+        </details>
+      </div>`;
+  }
+}
+
+/* ドラッグ＆ドロップ */
+const dropZone = document.getElementById('drop-zone');
+const fileInput = document.getElementById('file-input');
+
+function handleFile(file){
+  if(!file){ return; }
+  const reader = new FileReader();
+  reader.onload = e=>{
+    verifyCSV(e.target.result, file.name).catch(err=>{
+      document.getElementById('result-area').innerHTML =
+        `<div class="result ng"><h2>⚠️ エラー</h2><p>${escapeHtml(err.message)}</p></div>`;
+    });
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+dropZone.addEventListener('dragover', e=>{
+  e.preventDefault();
+  dropZone.classList.add('hover');
+});
+dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('hover'));
+dropZone.addEventListener('drop', e=>{
+  e.preventDefault();
+  dropZone.classList.remove('hover');
+  if(e.dataTransfer.files.length > 0) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e=>{
+  if(e.target.files.length > 0) handleFile(e.target.files[0]);
+});
+</script>
+
+</body>
+</html>
