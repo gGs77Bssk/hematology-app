@@ -43,7 +43,8 @@
   .modal-close{float:right;background:#95a5a6;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;}
   .modal-close:hover{background:#7f8c8d;}
   #student-table tbody tr{cursor:pointer;}
-  #student-table tbody tr:hover{background:#d6eaf8 !important;}
+  #student-table tbody tr:hover{background:#d6eaf8;}
+  #student-table tbody tr:hover td:nth-child(2){color:#1a5276 !important;}
   .detail-section{margin:18px 0;padding-bottom:10px;border-bottom:1px solid #eee;}
   .detail-radar{text-align:center;background:#f8f9f9;border-radius:8px;padding:12px;margin:8px 0;}
   .kpi-mini{display:inline-block;background:#ecf0f1;padding:6px 12px;margin:3px;border-radius:6px;font-size:13px;}
@@ -75,6 +76,9 @@
   <div class="kpi-row" id="class-kpi"></div>
 
   <h2>👥 学生一覧</h2>
+  <div class="meta-info" style="background:#eaf2f8;border-left:4px solid #2980b9;padding:8px 12px;margin-bottom:8px;font-size:13px;color:#2c3e50;">
+    💡 <b>氏名または学籍番号をクリックすると、その学生の詳細情報（レーダーチャート・弱点セクション・誤答問題・最終確認テスト結果など）が表示されます。</b>
+  </div>
   <div class="student-list">
     <table id="student-table">
       <thead>
@@ -292,24 +296,21 @@ function renderTable(filter){
   });
   tbody.innerHTML = arr.map(s=>{
     const firstTryPct = getFirstTryPct(s);
-    let cls = firstTryPct<75?'weak':(firstTryPct>=90?'strong':'');
-    let sigCell, rowExtraStyle='';
+    let sigCell;
     if(s._verified === true){
-      sigCell = '<span title="HMAC-SHA256 署名検証OK（改ざんなし）" style="color:#27ae60;">✅ 正当</span>';
+      sigCell = '<span title="HMAC-SHA256 署名検証OK（改ざんなし）" style="color:#27ae60;">✅</span>';
     } else if(s._verified === false){
       sigCell = '<span title="署名が不一致。改ざんの疑いあり" style="color:#c0392b;font-weight:bold;">❌ 改ざん疑い</span>';
-      rowExtraStyle = 'background:#fadbd8 !important;';
-      cls = 'weak';
     } else if(s._signature){
-      sigCell = '<span title="署名あり（検証未実施）" style="color:#7f8c8d;">🔏 未検証</span>';
+      sigCell = '<span title="署名あり（検証未実施）" style="color:#7f8c8d;">🔏</span>';
     } else {
-      sigCell = '<span title="署名なし（旧形式または手動編集）" style="color:#e67e22;">⚠️ 署名なし</span>';
+      sigCell = '<span title="署名なし（旧形式または手動編集）" style="color:#e67e22;">⚠️</span>';
     }
-    return `<tr class="${cls}" data-key="${esc(s._key)}" style="${rowExtraStyle}" title="クリックで個別詳細を表示">
+    return `<tr data-key="${esc(s._key)}" title="クリックで個別詳細を表示">
       <td>${esc(s.student.id||'')}</td>
-      <td>${esc(s.student.name||'')}</td>
+      <td style="color:#2980b9;text-decoration:underline;font-weight:bold;">${esc(s.student.name||'')}</td>
       <td>${s.summary?s.summary.completedSections:0}/${s.topics.length}</td>
-      <td><b>${firstTryPct}%</b><div class="bar"><div class="bar-fill" style="width:${firstTryPct}%;background:${barColor(firstTryPct)};"></div></div></td>
+      <td><b>${firstTryPct}%</b></td>
       <td>${s.summary?s.summary.accuracy:0}%</td>
       <td>${countWeak(s)}</td>
       <td>${s.finalTest?s.finalTest.pct+'%':'—'}</td>
