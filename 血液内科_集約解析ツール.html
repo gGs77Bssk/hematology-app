@@ -21,9 +21,6 @@
   tr.strong{background:#eafaf1;}
   .bar{height:12px;background:#ecf0f1;border-radius:6px;overflow:hidden;display:inline-block;vertical-align:middle;width:100px;}
   .bar-fill{height:100%;}
-  .heatmap{display:grid;gap:2px;margin-top:10px;font-size:10px;}
-  .cell{padding:6px 4px;text-align:center;border-radius:3px;color:#fff;font-weight:bold;min-width:30px;cursor:pointer;}
-  .cell.none{background:#bdc3c7;color:#666;}
   button{background:#2980b9;color:#fff;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;font-size:14px;margin:4px;}
   button:hover{background:#21618c;}
   button.danger{background:#c0392b;}
@@ -112,10 +109,6 @@
     </thead>
     <tbody></tbody>
   </table>
-
-  <h2>🌡️ 学生×セクション ヒートマップ</h2>
-  <div style="font-size:12px;color:#666;">セクション番号を横軸、学生を縦軸に配置。赤いセル＝弱点、緑＝得意。セルにマウスオーバーで詳細。</div>
-  <div id="heatmap"></div>
 
   <h2>⚠️ 要支援学生（一発正解率 &lt; 75%）</h2>
   <div id="at-risk-list"></div>
@@ -237,7 +230,6 @@ function renderAll(){
   renderClassKpi();
   renderTable('');
   renderSectionStats();
-  renderHeatmap();
   renderAtRisk();
 }
 
@@ -570,32 +562,6 @@ function renderSectionStats(){
   </tr>`).join('');
 }
 
-function renderHeatmap(){
-  const hm = document.getElementById('heatmap');
-  const sortedStudents = students.slice().sort((a,b)=>getFirstTryPct(a)-getFirstTryPct(b));
-  const cols = sectionNames.length + 1; // 1 for student name
-  hm.style.gridTemplateColumns = `160px repeat(${sectionNames.length},1fr)`;
-  let html = '<div style="font-weight:bold;">学生\\セクション</div>';
-  sectionNames.forEach((n,i)=>{ html += `<div style="font-size:9px;text-align:center;padding:2px;" title="${esc(n)}">${String(i+1).padStart(2,'0')}</div>`; });
-  sortedStudents.forEach(s=>{
-    html += `<div data-student-key="${esc(s._key)}" style="font-size:11px;padding:3px 4px;border-right:1px solid #ddd;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;" title="クリックで詳細: ${esc(s.student.id||'')} ${esc(s.student.name||'')}">${esc((s.student.id||'')+' '+(s.student.name||''))}</div>`;
-    sectionNames.forEach((_,i)=>{
-      const sc = s.radarScores && s.radarScores[i];
-      if(!sc || sc.attemptedQ===0){ html += `<div class="cell none" title="未実施">—</div>`; }
-      else {
-        const col = sc.pct>=90?'#27ae60':sc.pct>=75?'#3498db':sc.pct>=50?'#e67e22':'#c0392b';
-        html += `<div class="cell" style="background:${col};" title="${esc(sectionNames[i])}: ${sc.pct}%">${sc.pct}</div>`;
-      }
-    });
-  });
-  hm.innerHTML = html;
-  hm.querySelectorAll('[data-student-key]').forEach(el=>{
-    el.onclick = ()=>{
-      const s = students.find(x=>x._key===el.dataset.studentKey);
-      if(s) showStudentDetail(s);
-    };
-  });
-}
 
 function renderAtRisk(){
   const risky = students.filter(s=>getFirstTryPct(s)<75);
