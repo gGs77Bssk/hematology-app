@@ -2762,14 +2762,6 @@ document.getElementById('show-log').onclick = ()=>{
   renderLogPanel();
 };
 document.getElementById('show-radar').onclick = ()=>{
-  if(state.showingModeSelect || !state.mode){
-    alert('学習モードを選択してから確認できます。');
-    return;
-  }
-  if(state.showingFinalTest){
-    alert('最終確認テストを採点してから確認できます。');
-    return;
-  }
   state.showingMidRadar = true;
   state.showingSectionComplete = false;
   render();
@@ -2946,6 +2938,12 @@ function render(){
   updateProgress();
   renderLogPanel();
 
+  /* --- 途中レーダーチャート表示（モード未選択でも確認可能） --- */
+  if(state.showingMidRadar){
+    renderMidRadarScreen();
+    return;
+  }
+
   /* --- モード未選択 → モード選択画面 --- */
   if(!state.mode || state.showingModeSelect){
     renderModeSelect();
@@ -2986,12 +2984,6 @@ function render(){
   if(state.done && !state.showingRadar && !state.showingRemediation){
     state.showingRadar = true;
     renderRadarScreen();
-    return;
-  }
-
-  /* --- 途中レーダーチャート表示 --- */
-  if(state.showingMidRadar){
-    renderMidRadarScreen();
     return;
   }
 
