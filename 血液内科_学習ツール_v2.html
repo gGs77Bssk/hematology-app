@@ -2645,15 +2645,20 @@ document.getElementById('btn-t365-guide').onclick = ()=>{
 };
 document.getElementById('btn-t365-config').onclick = ()=>{
   const cur = getT365UploadUrl();
-  const input = prompt('Microsoft Forms または SharePoint のアップロード先URLを入力してください。\n（空欄のままOKを押すと、保存済みURLを削除します。キャンセルで何もせずに閉じます）', cur);
+  const input = prompt('Microsoft Forms または SharePoint のアップロード先URLを入力してください。', cur);
   if(input===null) return; // キャンセル
-  if(input && !/^https?:\/\//.test(input)){
+  const trimmed = input.trim();
+  if(!trimmed){
+    alert('URLが入力されていません。既存の設定は変更されません。');
+    return;
+  }
+  if(!/^https?:\/\//.test(trimmed)){
     alert('URLは http:// または https:// で始める必要があります。');
     return;
   }
-  setT365UploadUrl(input.trim());
+  setT365UploadUrl(trimmed);
   refreshT365Url();
-  alert(input.trim() ? '提出先URLを保存しました。' : '提出先URLを削除しました。');
+  alert('提出先URLを保存しました。');
 };
 
 /* ===== 進捗更新 ===== */
