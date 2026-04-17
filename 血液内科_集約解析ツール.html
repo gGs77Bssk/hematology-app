@@ -113,6 +113,12 @@
   <h2>⚠️ 要支援学生（一発正解率 &lt; 75%）</h2>
   <div id="at-risk-list"></div>
 
+  <h2>🔄 セクション再挑戦 クラス統計</h2>
+  <div class="meta-info" style="background:#ebf5fb;border-left:4px solid #2980b9;padding:8px 12px;margin-bottom:8px;font-size:13px;">
+    学生が学習のために再挑戦したセクションの集計です（1回目の記録とは別保管）。復習に熱心な学生や、理解に困難を感じたセクションが分かります。
+  </div>
+  <div id="retry-stats"></div>
+
   <h2>🕵️ 不自然パターン検出（改ざん/不正疑い）</h2>
   <div class="warn" style="font-size:12px;">
     解答時刻・解答時間の記録を分析し、<b>不自然に早い解答</b>や<b>時刻の偏り</b>を検出します。<br>
@@ -240,7 +246,53 @@ function renderAll(){
   renderTable('');
   renderSectionStats();
   renderAtRisk();
+  renderRetryStats();
   renderSuspicious();
+}
+
+function renderRetryStats(){
+  const el = document.getElementById('retry-stats');
+  if(!el) return;
+  // セクション別の再挑戦回数を集計
+  const perSectionRetries = {};
+  let totalRetries = 0;
+  let retryUsers = new Set();
+  students.forEach(s=>{
+    const rh = s.sectionRetryHistory || {};
+    Object.entries(rh).forEach(([idxStr, list])=>{
+      const retries = Array.isArray(list) ? list.slice(1).length : 0; // 1回目を除く
+      if(retries > 0){
+        retryUsers.add(s._key);
+        const idx = parseInt(idxStr);
+        if(!perSectionRetries[idx]) perSectionRetries[idx] = { retryCount:0, students:new Set() };
+        perSectionRetries[idx].retryCount += retries;
+        perSectionRetries[idx].students.add(s._key);
+        totalRetries += retries;
+      }
+    });
+  });
+  if(totalRetries === 0){
+    el.innerHTML = '<div style="color:#7f8c8d;padding:10px;">再挑戦記録のある学生はいません。</div>';
+    return;
+  }
+  const sortedSections = Object.entries(perSectionRetries)
+    .map(([idx, v])=>({ idx: parseInt(idx), name: sectionNames[idx]||'(不明)', ...v }))
+    .sort((a,b)=>b.retryCount - a.retryCount);
+  el.innerHTML = `
+    <div class="kpi-row">
+      <div class="kpi"><span class="kpi-label">再挑戦のべ回数</span><span class="kpi-value">${totalRetries}</span></div>
+      <div class="kpi"><span class="kpi-label">再挑戦した学生数</span><span class="kpi-value">${retryUsers.size}/${students.length}</span></div>
+      <div class="kpi"><span class="kpi-label">再挑戦率</span><span class="kpi-value">${students.length>0?Math.round(retryUsers.size/students.length*100):0}%</span></div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>セクション</th><th>再挑戦のべ回数</th><th>再挑戦した学生数</th></tr></thead>
+      <tbody>${sortedSections.map(s=>`<tr>
+        <td>${String(s.idx+1).padStart(2,'0')}</td>
+        <td>${esc(s.name)}</td>
+        <td><b>${s.retryCount}</b></td>
+        <td>${s.students.size}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
 }
 
 /* ===== 不自然パターン検出 ===== */
@@ -581,6 +633,35 @@ function showStudentDetail(s){
         </table>
       </details>
     </div>` : ''}
+
+    ${(function(){
+      const retryHistory = s.sectionRetryHistory || {};
+      const retryEntries = Object.entries(retryHistory).filter(([idx, list])=>Array.isArray(list) && list.length>0);
+      if(retryEntries.length === 0) return '';
+      const totalRetries = retryEntries.reduce((sum, [idx, list])=> sum + list.slice(1).length, 0);
+      if(totalRetries === 0) return '';
+      return `<div class="detail-section">
+        <h3>🔄 セクション再挑戦履歴 <span class="badge" style="background:#8e44ad;">${totalRetries}件</span></h3>
+        <div style="background:#ebf5fb;padding:8px 12px;border-radius:6px;border-left:4px solid #2980b9;font-size:12px;margin-bottom:6px;">
+          第1回目の記録と別保管されている再挑戦結果です。
+        </div>
+        <table><thead><tr><th>セクション</th><th>第1回</th><th>再挑戦回</th><th>再挑戦時</th><th>問題数</th><th>日時</th></tr></thead>
+          <tbody>${retryEntries.flatMap(([idxStr, list])=>{
+            const idx = parseInt(idxStr);
+            const topicTitle = sectionNames[idx] || '(不明)';
+            const firstPct = list[0] ? list[0].firstTryPct : '—';
+            return list.slice(1).map(att=>`<tr>
+              <td>${esc(topicTitle)}</td>
+              <td>${firstPct}%</td>
+              <td>第${att.attemptNumber}回</td>
+              <td><b>${att.firstTryPct}%</b></td>
+              <td>${att.total}</td>
+              <td>${att.endedAt?new Date(att.endedAt).toLocaleDateString('ja-JP'):'—'}</td>
+            </tr>`);
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+    })()}
 
     ${(s.sessionCount && s.sessionCount > 1) || (s.archivedSessions && s.archivedSessions.length > 0) ? `
     <div class="detail-section">

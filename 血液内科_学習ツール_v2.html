@@ -2402,6 +2402,7 @@ const state = {
   sessionCount: 1,              // 学習セッション回数（やり直すたびにインクリメント）
   firstStartedAt: null,         // 最初に学習を開始した日時
   archivedSessions: [],         // 過去セッションのアーカイブ
+  sectionRetryHistory: {},      // セクション再挑戦履歴 { topicIdx: [ {attempt} ] }
 };
 
 /* ===== 解答ログ ===== */
@@ -2447,6 +2448,43 @@ function loadProgress(){
 function clearProgress(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
 }
+/* セクションの現試行をアーカイブして、再挑戦履歴に保存 */
+function archiveCurrentSectionAttempt(topicIdx){
+  if(!state.sectionRetryHistory) state.sectionRetryHistory = {};
+  if(!state.sectionRetryHistory[topicIdx]) state.sectionRetryHistory[topicIdx] = [];
+  const history = state.sectionRetryHistory[topicIdx];
+  const attemptNumber = history.length + 1; // 1回目として記録
+  // 該当セクションのanswerLogエントリを抽出
+  const sectionAnswers = Object.values(answerLog).filter(e=>e.topicIdx===topicIdx);
+  const sectionHistory = attemptHistory.filter(h=>h.topicIdx===topicIdx);
+  const firstTryCount = sectionAnswers.filter(e=>e.firstTry===true).length;
+  const total = sectionAnswers.length;
+  const firstTryPct = total>0 ? Math.round(firstTryCount/total*100) : 0;
+  const archive = {
+    attemptNumber,
+    startedAt: sectionHistory.length > 0 ? sectionHistory[0].time : null,
+    endedAt: sectionHistory.length > 0 ? sectionHistory[sectionHistory.length-1].time : null,
+    total,
+    firstTryCount,
+    firstTryPct,
+    completed: topicStates[topicIdx] && topicStates[topicIdx].completed,
+    answers: sectionAnswers.map(e=>({
+      qIdx: e.qIdx, name: e.name, isClinical: e.isClinical,
+      firstTry: e.firstTry, wrongCount: e.wrongCount,
+      masteredAt: e.masteredAt,
+    })),
+    attemptTimestamps: sectionHistory.map(h=>({ time: h.time, qIdx: h.qIdx, correct: h.correct })),
+  };
+  history.push(archive);
+  // 該当セクションのanswerLogとattemptHistoryはクリア（別履歴に移行したため）
+  Object.keys(answerLog).forEach(k=>{
+    if(answerLog[k].topicIdx === topicIdx) delete answerLog[k];
+  });
+  for(let i=attemptHistory.length-1; i>=0; i--){
+    if(attemptHistory[i].topicIdx === topicIdx) attemptHistory.splice(i, 1);
+  }
+}
+
 /* 「最初からやり直す」: 履歴を保持したまま現セッションをリセット */
 function restartKeepingHistory(saved){
   // 保存データを一旦復元
@@ -2996,15 +3034,21 @@ function render(){
           下の学習ロードマップから、お好きなセクションをクリックしてください。<br>
           残り未完了セクション: <b>${remaining}</b> / ${TOPICS.length}
         </div>
+        ${(function(){
+          const retries = (state.sectionRetryHistory && state.sectionRetryHistory[state.topicIdx]) || [];
+          const retryCount = retries.length;
+          return `<div class="meta" style="margin-top:10px;font-size:12px;color:#7d6608;background:#fef9e7;padding:8px 10px;border-radius:4px;line-height:1.6;">
+            📝 このセクションの学習記録${retryCount>0 ? `（再挑戦${retryCount}回含む）`:''}が保存されています。<br>
+            再挑戦すると、その記録は<b>「1回目の記録とは別の履歴」</b>として保存され、教員提出用レポートに含まれます。
+          </div>`;
+        })()}
         ${remaining===0 ? `
           <div style="margin-top:16px;">
             <button id="goto-radar" style="background:#e67e22;min-height:48px;font-size:15px;padding:12px 22px;">📊 レーダーチャートで結果を確認 ▶</button>
           </div>` : `
           <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
             <button id="show-mid-radar2" style="background:#3498db;min-height:44px;padding:10px 20px;">📊 現在の一発正解率を確認</button>
-          </div>
-          <div class="meta" style="margin-top:12px;font-size:12px;color:#922b21;background:#fadbd8;padding:8px 10px;border-radius:4px;">
-            🔒 完了したセクションは再挑戦できません。未完了のセクションから次を選んでください。
+            <button id="redo-section" style="background:#8e44ad;min-height:44px;padding:10px 20px;">🔄 このセクションを再挑戦（学習用）</button>
           </div>`}
       </div>`;
     if(document.getElementById('goto-radar')){
@@ -3017,6 +3061,33 @@ function render(){
     if(document.getElementById('show-mid-radar2')){
       document.getElementById('show-mid-radar2').onclick = ()=>{
         state.showingMidRadar = true;
+        render();
+        window.scrollTo({top:0, behavior:'smooth'});
+      };
+    }
+    if(document.getElementById('redo-section')){
+      document.getElementById('redo-section').onclick = ()=>{
+        const retries = (state.sectionRetryHistory && state.sectionRetryHistory[state.topicIdx]) || [];
+        const nextAttemptNo = retries.length + 2; // 1回目が既にあるので次は2回目以降
+        const msg = '━━━━━━ このセクションを再挑戦しますか？ ━━━━━━\n\n' +
+          '◆ 再挑戦の記録は「1回目とは別の履歴」として保存されます。\n' +
+          '◆ HTMLレポートには第1回目の点数＋再挑戦の点数（第' + nextAttemptNo + '回目）が\n' +
+          '  両方記録され、教員側の集約解析ツールでも確認できます。\n' +
+          '◆ 再挑戦は学習のため何度でも可能ですが、成績評価は主に1回目の\n' +
+          '  記録を基準にされる場合があります。\n\n' +
+          '◎ 記憶の定着を確認する目的として活用してください。';
+        if(!confirm(msg)) return;
+        // 1回目の記録をアーカイブ
+        archiveCurrentSectionAttempt(state.topicIdx);
+        // 再抽選
+        const reselected = shuffle(ts.allQuestions).slice(0, Math.min(QUESTIONS_PER_SECTION, ts.allQuestions.length));
+        ts.selectedQuestions = reselected.slice();
+        ts.queue = shuffle(reselected);
+        ts.mastered = 0;
+        ts.total = reselected.length;
+        ts.completed = false;
+        initTopic();
+        saveProgress();
         render();
         window.scrollTo({top:0, behavior:'smooth'});
       };
@@ -3036,8 +3107,8 @@ function render(){
       state.selected = null;
       state.answered = false;
       if(ts.queue.length===0){
-        // 完了セクションは再挑戦不可（履歴保護）
-        alert('このセクションは既に完了しています。再挑戦はできません。');
+        // 完了セクションは上の再挑戦ボタンから（履歴アーカイブ経由で）のみ可能
+        alert('このセクションは既に完了しています。\n再挑戦する場合は、下部の「🔄 このセクションを再挑戦（学習用）」ボタンをご利用ください（履歴が別枠に保存されます）。');
         return;
       }
       state.currentQ = ts.queue[0];
@@ -4310,6 +4381,8 @@ async function exportHtmlReport(){
     firstStartedAt: state.firstStartedAt || null,
     currentSessionStartedAt: state.currentSessionStartedAt || state.firstStartedAt,
     archivedSessions: state.archivedSessions || [],
+    // ==== セクション再挑戦履歴 ====
+    sectionRetryHistory: state.sectionRetryHistory || {},
   };
   const json = JSON.stringify(data);
   const sig = await hmacSha256Hex(HMAC_SECRET_KEY, json);
@@ -4497,6 +4570,39 @@ async function exportHtmlReport(){
 ${finalTestBlock}
 
 ${sessionBlock}
+
+${(function(){
+  const retryHistory = data.sectionRetryHistory || {};
+  const retryEntries = Object.entries(retryHistory).filter(([idx, list])=>Array.isArray(list) && list.length>0);
+  if(retryEntries.length === 0) return '';
+  let totalRetries = 0;
+  retryEntries.forEach(([idx, list])=>{ totalRetries += list.length; });
+  return `<section>
+    <h2>🔄 セクション再挑戦履歴 <span class="badge" style="background:#8e44ad;">${totalRetries}件</span></h2>
+    <div class="comment-box" style="background:#ebf5fb;border-left-color:#2980b9;">
+      <b>同じセクションを再挑戦した記録（1回目の記録とは別保管）です。</b><br>
+      第1回目の成績は上記「セクション別詳細」に反映され、ここには2回目以降の再挑戦が表示されます。
+    </div>
+    <table class="tbl">
+      <thead><tr><th>セクション</th><th>第1回<br>一発正解率</th><th>再挑戦回</th><th>再挑戦時<br>一発正解率</th><th>問題数</th><th>挑戦日時</th></tr></thead>
+      <tbody>
+        ${retryEntries.flatMap(([idxStr, list])=>{
+          const idx = parseInt(idxStr);
+          const topicTitle = (TOPICS[idx] && TOPICS[idx].title) || '(不明)';
+          const firstAttemptPct = list[0] ? list[0].firstTryPct : '—';
+          return list.slice(1).map((att, i)=>`<tr>
+            <td>${escapeHtml(topicTitle)}</td>
+            <td>${firstAttemptPct}%</td>
+            <td>第${att.attemptNumber}回</td>
+            <td><b>${att.firstTryPct}%</b></td>
+            <td>${att.total}</td>
+            <td>${att.endedAt ? new Date(att.endedAt).toLocaleString('ja-JP') : '—'}</td>
+          </tr>`);
+        }).join('')}
+      </tbody>
+    </table>
+  </section>`;
+})()}
 
 ${info.comment ? `<section><h2>💬 学習者コメント</h2><div class="comment-box">${escapeHtml(info.comment)}</div></section>` : ''}
 
