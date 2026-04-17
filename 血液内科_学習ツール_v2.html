@@ -162,8 +162,8 @@
 </style>
 </head>
 <body>
-<h1>🩸 血液内科 総合学習ツール【順次モード】</h1>
-<div class="mode-banner">🔒 順次モード：基礎から順に、各セクションを完全習得するまで次に進めません（ジャンプ不可）</div>
+<h1 id="app-title">🩸 血液内科 総合学習ツール</h1>
+<div id="mode-banner" class="mode-banner">🎯 学習モードを選択してください</div>
 <div class="meta">令和6年版医師国家試験出題基準に準拠 ／ 基礎→臨床の順で全項目を学習<br>
 <b>★各セクションからランダム5問を出題・全問題の正解履歴を自動記録★</b></div>
 
@@ -207,11 +207,13 @@
 <div id="main" class="card"></div>
 
 <div class="card">
-  <div class="meta"><b>学習ロードマップ</b>（基礎→臨床／順次進行・ジャンプ不可）</div>
+  <div class="meta"><b>学習ロードマップ</b> <span id="mode-hint">（モード選択中）</span></div>
   <div id="topic-list" class="topic-list"></div>
   <div class="nav-btns">
     <button id="show-log" style="background:#8e44ad">📊 解答ログを見る</button>
-    <button id="export-log" style="background:#16a085">💾 ログをCSVで保存</button>
+    <button id="export-report" style="background:#c0392b">📄 HTMLレポートを保存（視覚的）</button>
+    <button id="export-log" style="background:#16a085">💾 CSVで保存</button>
+    <button id="reset-progress" style="background:#95a5a6" title="進捗を削除して最初からやり直す">🗑️ 進捗リセット</button>
   </div>
   <div id="log-panel-container"></div>
 
@@ -249,7 +251,7 @@
     <textarea id="student-comment" placeholder="つまずいた項目、質問などを自由にご記入ください"></textarea>
     <button id="send-log" class="btn-send">📧 学習ログを指導医に提出する</button>
     <div class="help">
-      <b>送信手順（Microsoftサインイン不要）:</b><br>
+      <b>メール送信手順（Microsoftサインイン不要）:</b><br>
       ① 上のボタンを押すと、<b>学習ログCSV</b>が1つダウンロードされ、同時に送信内容のモーダルが開きます。<br>
       ② モーダル内の「📋 宛先コピー」「📋 件名コピー」「📋 本文コピー」ボタンで必要な内容を順にコピー。<br>
       ③ <b>大学のメールサービス</b>で新規作成 → 貼り付け。<br>
@@ -257,6 +259,31 @@
       ⑤ 送信完了後、<b>ダウンロードフォルダのCSVファイルを削除</b>してください。<br>
       <span style="color:#16a085"><b>✅ このツール自体は外部への通信を一切行いません（完全オフライン動作）。</b></span><br>
       <span style="color:#c0392b;font-size:12px"><b>🔒 改ざん検出署名(HMAC-SHA256)がCSV末尾に自動付加されます。</b>CSVを手動で編集すると指導医側の検証ツールで検出されます。</span>
+    </div>
+
+    <div style="margin-top:14px;border-top:1px dashed #d4ac0d;padding-top:10px;">
+      <div style="font-weight:bold;color:#7d6608;">🔗 大学 Microsoft 365 でアップロード提出（推奨・半自動）</div>
+      <div class="help" style="margin-top:4px;">
+        指導医が設定した <b>Microsoft Forms</b> または <b>SharePoint/Teams</b> のアップロード先に、HTMLレポートを直接提出できます。
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button id="btn-t365-upload" style="background:#0078d4;color:#fff;border:none;border-radius:4px;padding:8px 14px;cursor:pointer;font-size:13px;">📤 T365 提出先を開く</button>
+        <button id="btn-t365-guide" style="background:#7f8c8d;color:#fff;border:none;border-radius:4px;padding:8px 14px;cursor:pointer;font-size:13px;">📘 提出手順ガイド</button>
+        <button id="btn-t365-config" style="background:#d4ac0d;color:#fff;border:none;border-radius:4px;padding:8px 14px;cursor:pointer;font-size:13px;" title="教員用: 提出先URLを設定">⚙️ 提出先URL設定（教員用）</button>
+      </div>
+      <div id="t365-url-display" style="font-size:12px;color:#555;margin-top:6px;"></div>
+      <div id="t365-guide" style="display:none;background:#eaf2f8;border-left:5px solid #2980b9;padding:10px 14px;margin-top:8px;border-radius:4px;font-size:12px;line-height:1.7;">
+        <b>📘 T365 提出手順：</b><br>
+        ① <b>HTMLレポートを保存</b>（上の「📄 HTMLレポートを保存」ボタン）<br>
+        ② <b>「📤 T365 提出先を開く」をクリック</b> → 指定されたMicrosoft FormsまたはSharePoint/Teamsページが別タブで開く<br>
+        ③ <b>大学アカウントでサインイン</b> → 表示される指示に従ってHTMLレポートをアップロード<br>
+        ④ 氏名・学籍番号を入力して提出（Formsの場合は自動記録、SharePointの場合は命名規則に従う）<br><br>
+        <b>SharePoint/Teams で提出する場合のファイル名規則</b>：<code>血液内科学習レポート_[学籍番号]_[YYYYMMDD].html</code><br><br>
+        <b>教員向け設定（初回）：</b><br>
+        ・Microsoft Forms で「ファイルアップロード」質問を含むフォームを作成、または SharePoint ドキュメントライブラリを準備<br>
+        ・学生に配布するこのツールの「⚙️ 提出先URL設定」からそのURLを入力 or システム管理者が HTML 内の <code>T365_UPLOAD_URL</code> 定数を編集<br>
+        ・Power Automate で受信時に集計リストへ自動記録可能（詳細は別ドキュメント参照）
+      </div>
     </div>
   </div>
 </div>
@@ -270,6 +297,19 @@
 
 /* ===== 改ざん検出用 HMAC 秘密鍵 ===== */
 const HMAC_SECRET_KEY = 'BloodHemeKoku6-2024-SignatureKey-CHANGE-ME-FOR-PRODUCTION';
+
+/* ===== T365 提出先URL（教員が設定） =====
+   Microsoft Forms または SharePoint ドキュメントライブラリの URL を指定。
+   学生側は「⚙️ 提出先URL設定」から localStorage に保存することも可能。 */
+const T365_UPLOAD_URL = ''; // 例: 'https://forms.office.com/r/XXXXXXXXXX' または 'https://tokai.sharepoint.com/sites/...'
+function getT365UploadUrl(){
+  const override = localStorage.getItem('hematology_t365_upload_url');
+  return override || T365_UPLOAD_URL || '';
+}
+function setT365UploadUrl(url){
+  if(url) localStorage.setItem('hematology_t365_upload_url', url);
+  else localStorage.removeItem('hematology_t365_upload_url');
+}
 
 async function hmacSha256Hex(key, msg){
   const enc = new TextEncoder();
@@ -2215,6 +2255,31 @@ const RADAR_CATEGORIES = TOPICS.map((t, i) => {
 /* ===== ランダム出題数 ===== */
 const QUESTIONS_PER_SECTION = 5;
 
+/* ===== 多選問題対応 ヘルパー ===== */
+function isMultiSelect(q){ return Array.isArray(q.ans); }
+function requiredSelectCount(q){ return Array.isArray(q.ans) ? q.ans.length : 1; }
+function isAnswerCorrect(userAns, correctAns){
+  if(Array.isArray(correctAns)){
+    if(!Array.isArray(userAns)) return false;
+    if(userAns.length !== correctAns.length) return false;
+    const a = [...userAns].map(Number).sort((x,y)=>x-y);
+    const b = [...correctAns].map(Number).sort((x,y)=>x-y);
+    return a.every((v,i)=>v===b[i]);
+  }
+  return userAns === correctAns;
+}
+function formatAnswer(ans){
+  if(Array.isArray(ans)){
+    return [...ans].sort((a,b)=>a-b).map(i=>String.fromCharCode(0x2460+i)).join(' ');
+  }
+  return ans==null ? '' : String.fromCharCode(0x2460+ans);
+}
+function multiSelectBadge(q){
+  if(!isMultiSelect(q)) return '';
+  const n = q.ans.length;
+  return `<span class="badge" style="background:#8e44ad;color:#fff;margin-left:6px;">${n}つ選択</span>`;
+}
+
 /* ===== Fisher-Yatesシャッフル ===== */
 function shuffle(arr){
   const a = arr.slice();
@@ -2243,6 +2308,8 @@ const topicStates = TOPICS.map((t,i)=>{
 
 /* ===== アプリケーション状態 ===== */
 const state = {
+  mode: null,             // 'sequential' | 'free' — 起動時に選択
+  showingModeSelect: true,
   topicIdx: 0,
   currentQ: null,
   showingNote: false,
@@ -2259,6 +2326,9 @@ const state = {
   remediationQueue: [],         // 弱点補強の問題キュー [{topicIdx, qIdx}]
   remediationCurrentIdx: 0,     // 弱点補強の現在位置
   remediationMastered: 0,
+  showingFinalTest: false,      // 最終確認テスト中
+  showingFinalTestResult: false,// 最終確認テスト結果画面
+  finalTest: null,              // 最終確認テストの state/結果
 };
 
 /* ===== 解答ログ ===== */
@@ -2268,6 +2338,59 @@ const attemptHistory = [];
 /* 弱点補強ログ(別枠) */
 const remediationLog = {};
 const remediationHistory = [];
+
+/* ===== 進捗自動保存（localStorage） ===== */
+const SAVE_KEY = 'hematology_tool_v2_progress';
+const SAVE_VERSION = 1;
+let saveTimer = null;
+function saveProgress(){
+  try{
+    const payload = {
+      version: SAVE_VERSION,
+      savedAt: new Date().toISOString(),
+      state: state,
+      topicStates: topicStates,
+      answerLog: answerLog,
+      attemptHistory: attemptHistory,
+      remediationLog: remediationLog,
+      remediationHistory: remediationHistory,
+    };
+    localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+  }catch(e){ console.warn('saveProgress failed:', e); }
+}
+function scheduleSave(){
+  if(saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(saveProgress, 300);
+}
+function loadProgress(){
+  try{
+    const raw = localStorage.getItem(SAVE_KEY);
+    if(!raw) return null;
+    const data = JSON.parse(raw);
+    if(!data || data.version !== SAVE_VERSION) return null;
+    return data;
+  }catch(e){ return null; }
+}
+function clearProgress(){
+  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+}
+function restoreProgress(data){
+  Object.assign(state, data.state);
+  // topicStates: 既に同じ長さで初期化済みなので各要素をマージ
+  if(Array.isArray(data.topicStates)){
+    data.topicStates.forEach((ts, i)=>{
+      if(topicStates[i]) Object.assign(topicStates[i], ts);
+    });
+  }
+  Object.keys(answerLog).forEach(k=>delete answerLog[k]);
+  Object.assign(answerLog, data.answerLog||{});
+  attemptHistory.length = 0;
+  (data.attemptHistory||[]).forEach(x=>attemptHistory.push(x));
+  Object.keys(remediationLog).forEach(k=>delete remediationLog[k]);
+  Object.assign(remediationLog, data.remediationLog||{});
+  remediationHistory.length = 0;
+  (data.remediationHistory||[]).forEach(x=>remediationHistory.push(x));
+}
 
 function curTS(){ return topicStates[state.topicIdx]; }
 
@@ -2395,19 +2518,84 @@ function initTopic(){
 
 /* ===== トピックリスト描画 ===== */
 function renderTopicList(){
+  const isFree = state.mode === 'free';
   topicListEl.innerHTML = TOPICS.map((t,i)=>{
     const ts = topicStates[i];
     const cls = [
       'item',
       ts.completed?'done':'',
-      i===state.topicIdx && !state.done?'cur':'',
+      i===state.topicIdx && !state.done && !state.showingModeSelect?'cur':'',
     ].filter(Boolean).join(' ');
-    const locked = (i>state.topicIdx && !ts.completed);
-    const mark = ts.completed?'✅':(i===state.topicIdx && !state.done?'▶':(locked?'🔒':'・'));
+    const locked = !isFree && (i>state.topicIdx && !ts.completed);
+    const mark = ts.completed?'✅':(i===state.topicIdx && !state.done && !state.showingModeSelect?'▶':(locked?'🔒':(isFree?'📖':'・')));
     const prog = ts.total ? ` <span style="font-size:11px;color:#888">(${ts.mastered}/${ts.total})</span>` : '';
-    const style = locked ? ' style="color:#aaa;cursor:not-allowed"' : '';
+    const clickable = isFree && !state.showingModeSelect && !state.showingRemediation && !state.remediationComplete && !state.done;
+    const style = locked ? ' style="color:#aaa;cursor:not-allowed"' : (clickable ? ' style="cursor:pointer"' : '');
     return `<div class="${cls}" data-idx="${i}"${style}>${mark} ${escapeHtml(t.title)}${prog}</div>`;
   }).join('');
+  if(isFree && !state.showingModeSelect){
+    topicListEl.querySelectorAll('.item').forEach(el=>{
+      el.onclick = ()=>{
+        const idx = parseInt(el.dataset.idx);
+        if(isNaN(idx)) return;
+        if(state.showingRemediation || state.remediationComplete || state.done) return;
+        state.topicIdx = idx;
+        state.showingSectionComplete = false;
+        state.showingMidRadar = false;
+        initTopic();
+        render();
+        window.scrollTo({top:0, behavior:'smooth'});
+      };
+    });
+  }
+}
+
+/* ===== モード選択画面 ===== */
+function renderModeSelect(){
+  main.innerHTML = `
+    <div style="max-width:640px;margin:20px auto;">
+      <h2 style="color:#2c3e50;text-align:center;">🎯 学習モードを選択</h2>
+      <div style="display:grid;gap:14px;margin-top:20px;">
+        <div class="mode-card" data-mode="sequential" style="border:2px solid #3498db;border-radius:10px;padding:18px;background:#f4faff;cursor:pointer;">
+          <div style="font-size:18px;font-weight:bold;color:#2980b9;">📚 順次モード（カリキュラム型）</div>
+          <div style="margin-top:8px;font-size:14px;line-height:1.6;color:#34495e;">
+            基礎から順に、各セクションを完全習得するまで次に進めません。<br>
+            <span style="color:#888;font-size:12px;">初学者・体系的に学びたい方向け</span>
+          </div>
+        </div>
+        <div class="mode-card" data-mode="free" style="border:2px solid #27ae60;border-radius:10px;padding:18px;background:#f0fdf4;cursor:pointer;">
+          <div style="font-size:18px;font-weight:bold;color:#27ae60;">🧭 自由選択モード</div>
+          <div style="margin-top:8px;font-size:14px;line-height:1.6;color:#34495e;">
+            37セクションを自由に選んで学習できます。苦手分野の集中復習にも。<br>
+            <span style="color:#888;font-size:12px;">復習・苦手分野克服・臨床実習前のおさらい向け</span>
+          </div>
+        </div>
+      </div>
+      <div class="meta" style="margin-top:16px;font-size:12px;color:#888;text-align:center;">※ モードは途中で変更できます（「進捗リセット」で再選択）</div>
+    </div>`;
+  main.querySelectorAll('.mode-card').forEach(el=>{
+    el.onmouseenter = ()=>{ el.style.transform = 'scale(1.02)'; el.style.transition='transform 0.15s'; };
+    el.onmouseleave = ()=>{ el.style.transform = 'scale(1)'; };
+    el.onclick = ()=>{
+      const m = el.dataset.mode;
+      state.mode = m;
+      state.showingModeSelect = false;
+      // モード変更時は、カレントセクションをリセット（順次は0から、自由は最初でも別セクションでも）
+      if(m === 'sequential'){
+        // 最初の未完了セクションを探す
+        let idx = 0;
+        for(let i=0;i<topicStates.length;i++){
+          if(!topicStates[i].completed){ idx = i; break; }
+          idx = i+1;
+        }
+        state.topicIdx = Math.min(idx, TOPICS.length-1);
+      }
+      initTopic();
+      saveProgress();
+      render();
+      window.scrollTo({top:0, behavior:'smooth'});
+    };
+  });
 }
 
 /* ===== イベント登録 ===== */
@@ -2416,10 +2604,81 @@ document.getElementById('show-log').onclick = ()=>{
   renderLogPanel();
 };
 document.getElementById('export-log').onclick = ()=> exportLogCSV().catch(e=>alert('CSV出力に失敗しました: '+e.message));
+document.getElementById('export-report').onclick = ()=> exportHtmlReport().catch(e=>alert('レポート出力に失敗しました: '+e.message));
 document.getElementById('send-log').onclick = ()=> sendLogToSupervisor().catch(e=>alert('送信準備に失敗しました: '+e.message));
+document.getElementById('reset-progress').onclick = ()=>{
+  if(confirm('保存されている進捗を削除して最初からやり直しますか？\nこの操作は取り消せません。')){
+    clearProgress();
+    location.reload();
+  }
+};
+
+/* T365 提出ボタン */
+function refreshT365Url(){
+  const url = getT365UploadUrl();
+  const el = document.getElementById('t365-url-display');
+  if(el){
+    if(url) el.innerHTML = `🔗 現在の提出先: <code style="font-size:11px;">${escapeHtml(url)}</code>`;
+    else el.innerHTML = `<span style="color:#c0392b;">⚠️ 提出先URLが未設定です。指導医または教員にURL発行を依頼してください。</span>`;
+  }
+}
+refreshT365Url();
+document.getElementById('btn-t365-upload').onclick = ()=>{
+  const url = getT365UploadUrl();
+  if(!url){
+    alert('提出先URLが未設定です。\n指導医に連絡するか、「⚙️ 提出先URL設定」から入力してください。');
+    return;
+  }
+  // 先にHTMLレポートをダウンロードさせる
+  if(confirm('HTMLレポートを先にダウンロードしますか？\n（はい＝先にダウンロードしてから提出ページを開く）')){
+    exportHtmlReport().then(()=>{
+      setTimeout(()=>{ window.open(url, '_blank', 'noopener'); }, 500);
+    }).catch(e=>alert('レポート出力に失敗: '+e.message));
+  } else {
+    window.open(url, '_blank', 'noopener');
+  }
+};
+document.getElementById('btn-t365-guide').onclick = ()=>{
+  const g = document.getElementById('t365-guide');
+  if(g) g.style.display = g.style.display==='none' ? 'block' : 'none';
+};
+document.getElementById('btn-t365-config').onclick = ()=>{
+  const cur = getT365UploadUrl();
+  const input = prompt('Microsoft Forms または SharePoint のアップロード先URLを入力してください（空で削除）:', cur);
+  if(input===null) return; // キャンセル
+  if(input && !/^https?:\/\//.test(input)){
+    alert('URLは http:// または https:// で始める必要があります。');
+    return;
+  }
+  setT365UploadUrl(input.trim());
+  refreshT365Url();
+  alert(input.trim() ? '提出先URLを保存しました。' : '提出先URLを削除しました。');
+};
 
 /* ===== 進捗更新 ===== */
 function updateProgress(){
+  // モードバナー更新
+  const banner = document.getElementById('mode-banner');
+  const title = document.getElementById('app-title');
+  const hint = document.getElementById('mode-hint');
+  if(banner && title && hint){
+    if(state.mode === 'sequential'){
+      title.innerHTML = '🩸 血液内科 総合学習ツール【順次モード】';
+      banner.innerHTML = '🔒 順次モード：基礎から順に、各セクションを完全習得するまで次に進めません（ジャンプ不可）';
+      banner.style.background = '';
+      hint.textContent = '（基礎→臨床／順次進行・ジャンプ不可）';
+    } else if(state.mode === 'free'){
+      title.innerHTML = '🩸 血液内科 総合学習ツール【自由選択モード】';
+      banner.innerHTML = '🧭 自由選択モード：どのセクションからでも学習できます（クリックで選択）';
+      banner.style.background = 'linear-gradient(135deg,#27ae60,#1e8449)';
+      hint.textContent = '（クリックで自由に選択可）';
+    } else {
+      title.innerHTML = '🩸 血液内科 総合学習ツール';
+      banner.innerHTML = '🎯 学習モードを選択してください';
+      banner.style.background = 'linear-gradient(135deg,#3498db,#2980b9)';
+      hint.textContent = '（モード選択中）';
+    }
+  }
   const completedCount = topicStates.filter(ts=>ts.completed).length;
   const pct = TOPICS.length>0 ? Math.round(completedCount / TOPICS.length * 100) : 0;
   progBar.style.width = pct+'%';
@@ -2457,9 +2716,28 @@ function renderQBLinks(q){
 
 /* ===== メイン描画 ===== */
 function render(){
+  scheduleSave();
   renderTopicList();
   updateProgress();
   renderLogPanel();
+
+  /* --- モード未選択 → モード選択画面 --- */
+  if(!state.mode || state.showingModeSelect){
+    renderModeSelect();
+    return;
+  }
+
+  /* --- 最終確認テスト結果 --- */
+  if(state.showingFinalTestResult){
+    renderFinalTestResult();
+    return;
+  }
+
+  /* --- 最終確認テスト中 --- */
+  if(state.showingFinalTest){
+    renderFinalTest();
+    return;
+  }
 
   /* --- 弱点補強完了 --- */
   if(state.remediationComplete){
@@ -2502,6 +2780,57 @@ function render(){
   if(!topic){ return; }
   const ts = curTS();
 
+  /* --- 自由モードで現セクションが既完了かつキュー空 → セクション選択を促す --- */
+  if(state.mode==='free' && ts && ts.completed && (!ts.queue || ts.queue.length===0)){
+    const remaining = topicStates.filter(t=>!t.completed).length;
+    main.innerHTML = `
+      <div style="text-align:center;padding:30px 20px;">
+        <div style="font-size:40px;margin-bottom:8px;">🧭</div>
+        <h2 style="color:#2c3e50;">次に学習するセクションを選択してください</h2>
+        <div class="meta" style="font-size:14px;line-height:1.7;">
+          現在のセクション「${escapeHtml(topic.title)}」は完了済みです。<br>
+          下の学習ロードマップから、お好きなセクションをクリックしてください。<br>
+          残り未完了セクション: <b>${remaining}</b> / ${TOPICS.length}
+        </div>
+        ${remaining===0 ? `
+          <div style="margin-top:16px;">
+            <button id="goto-radar" style="background:#e67e22;min-height:48px;font-size:15px;padding:12px 22px;">📊 レーダーチャートで結果を確認 ▶</button>
+          </div>` : `
+          <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+            <button id="show-mid-radar2" style="background:#3498db;min-height:44px;padding:10px 20px;">📊 現在の一発正解率を確認</button>
+            <button id="redo-section" style="background:#8e44ad;min-height:44px;padding:10px 20px;">🔄 このセクションを再挑戦</button>
+          </div>`}
+      </div>`;
+    if(document.getElementById('goto-radar')){
+      document.getElementById('goto-radar').onclick = ()=>{
+        state.done = true;
+        state.showingRadar = true;
+        render();
+      };
+    }
+    if(document.getElementById('show-mid-radar2')){
+      document.getElementById('show-mid-radar2').onclick = ()=>{
+        state.showingMidRadar = true;
+        render();
+        window.scrollTo({top:0, behavior:'smooth'});
+      };
+    }
+    if(document.getElementById('redo-section')){
+      document.getElementById('redo-section').onclick = ()=>{
+        // 再抽選
+        const reselected = shuffle(ts.allQuestions).slice(0, Math.min(QUESTIONS_PER_SECTION, ts.allQuestions.length));
+        ts.selectedQuestions = reselected.slice();
+        ts.queue = shuffle(reselected);
+        ts.mastered = 0;
+        ts.total = reselected.length;
+        ts.completed = false;
+        initTopic();
+        render();
+      };
+    }
+    return;
+  }
+
   /* --- ノート表示 --- */
   if(state.showingNote){
     main.innerHTML = `
@@ -2533,9 +2862,12 @@ function render(){
   const q = topic.questions[state.currentQ];
   if(!q){ return; }
   const isClinical = q.type === 'clinical';
+  const modeBadge = state.mode==='free'
+    ? '<span class="badge" style="background:#27ae60;color:#fff">🧭 自由選択</span>'
+    : '<span class="badge ok">📚 順次モード</span>';
   const badge = isClinical
     ? '<span class="badge clinical">臨床実地問題</span>'
-    : '<span class="badge ok">順次モード</span>';
+    : modeBadge;
   const caseBlock = isClinical && q.vignette
     ? `<div class="clinical-case"><b>【症例】</b>\n${escapeHtml(q.vignette)}</div>`
     : '';
@@ -2555,21 +2887,55 @@ function render(){
     ${caseBlock}
     ${imgBlock}
     ${q.source ? `<div style="font-size:12px;color:#7f8c8d;margin-bottom:6px;padding:3px 8px;background:#f8f9fa;border-radius:4px;display:inline-block;">📋 <b>${escapeHtml(q.source)}</b></div>` : ''}
-    <div><b>Q.</b> ${escapeHtml(q.q)}</div>
+    <div><b>Q.</b> ${escapeHtml(q.q)} ${multiSelectBadge(q)}</div>
+    ${isMultiSelect(q) ? `<div class="meta" style="color:#8e44ad;font-size:13px;">※ この問題は <b>${q.ans.length}つ</b> 選んでください（国試形式）</div>` : ''}
     <ol class="choices" id="choices">
       ${q.choices.map((c,i)=>`<li data-i="${i}">${String.fromCharCode(0x2460+i)} ${escapeHtml(c)}</li>`).join('')}
     </ol>
+    <div id="selection-info" style="font-size:13px;color:#666;margin:6px 0;"></div>
     <div id="feedback"></div>
     <button id="submit">解答する</button>
     <button id="peek" style="background:#7f8c8d">ノートを見る 📖</button>`;
 
+  // 多選の場合は配列、単一選択の場合は数値
+  state.selected = isMultiSelect(q) ? [] : null;
   const choicesEl = document.getElementById('choices');
+  const infoEl = document.getElementById('selection-info');
+  const updateInfo = ()=>{
+    if(isMultiSelect(q)){
+      const need = q.ans.length;
+      const have = (state.selected||[]).length;
+      if(infoEl){
+        infoEl.textContent = `選択中: ${have} / ${need}`;
+        infoEl.style.color = have===need ? '#27ae60' : '#e67e22';
+      }
+    }
+  };
+  updateInfo();
   choicesEl.querySelectorAll('li').forEach(li=>{
     li.onclick = ()=>{
       if(state.answered) return;
-      choicesEl.querySelectorAll('li').forEach(x=>x.classList.remove('selected'));
-      li.classList.add('selected');
-      state.selected = parseInt(li.dataset.i);
+      const idx = parseInt(li.dataset.i);
+      if(isMultiSelect(q)){
+        const arr = state.selected || [];
+        const pos = arr.indexOf(idx);
+        if(pos>=0){ arr.splice(pos,1); li.classList.remove('selected'); }
+        else {
+          if(arr.length >= q.ans.length){
+            // 既に必要数選択済み：最も古い選択を外す
+            const first = arr.shift();
+            const firstLi = choicesEl.querySelector(`li[data-i="${first}"]`);
+            if(firstLi) firstLi.classList.remove('selected');
+          }
+          arr.push(idx); li.classList.add('selected');
+        }
+        state.selected = arr;
+      } else {
+        choicesEl.querySelectorAll('li').forEach(x=>x.classList.remove('selected'));
+        li.classList.add('selected');
+        state.selected = idx;
+      }
+      updateInfo();
     };
   });
   document.getElementById('submit').onclick = submitAnswer;
@@ -2584,13 +2950,25 @@ function submitAnswer(){
   const topic = TOPICS[state.topicIdx];
   const ts = curTS();
   const q = topic.questions[state.currentQ];
-  if(state.selected===null){ alert('選択肢を選んでください'); return; }
+  // 選択チェック
+  if(isMultiSelect(q)){
+    const need = q.ans.length;
+    const have = (state.selected||[]).length;
+    if(have !== need){ alert(`${need}つの選択肢を選んでください（現在 ${have} 個選択中）`); return; }
+  } else {
+    if(state.selected===null){ alert('選択肢を選んでください'); return; }
+  }
   state.answered = true;
   const lis = document.querySelectorAll('#choices li');
-  lis[q.ans].classList.add('correct');
+  // 正解選択肢をハイライト（複数可）
+  if(isMultiSelect(q)){
+    q.ans.forEach(a=>lis[a].classList.add('correct'));
+  } else {
+    lis[q.ans].classList.add('correct');
+  }
   const fb = document.getElementById('feedback');
 
-  if(state.selected === q.ans){
+  if(isAnswerCorrect(state.selected, q.ans)){
     logAttempt(true, false);
     ts.queue = ts.queue.filter(x=>x!==state.currentQ);
     ts.mastered++;
@@ -2603,7 +2981,8 @@ function submitAnswer(){
     document.getElementById('peek').remove();
     if(ts.queue.length===0){
       document.getElementById('nextT').onclick = ()=> {
-        if(state.topicIdx + 1 >= TOPICS.length){
+        const allDone = topicStates.every(t=>t.completed);
+        if(allDone){
           state.done = true;
           state.showingRadar = true;
           render();
@@ -2625,7 +3004,11 @@ function submitAnswer(){
     updateProgress();
   } else {
     logAttempt(false, false);
-    lis[state.selected].classList.add('wrong');
+    if(Array.isArray(state.selected)){
+      state.selected.forEach(i=>{ if(lis[i]) lis[i].classList.add('wrong'); });
+    } else if(state.selected!=null){
+      if(lis[state.selected]) lis[state.selected].classList.add('wrong');
+    }
     fb.innerHTML = `<div class="feedback ng">❌ 不正解。${escapeHtml(q.exp)}</div>
       ${renderQBLinks(q)}
       <div class="meta">この問題はキュー末尾に戻され、あとでもう一度出題されます。全問正解するまで次のセクションには進めません。</div>`;
@@ -2647,8 +3030,15 @@ function submitAnswer(){
 function renderSectionComplete(){
   const topic = TOPICS[state.topicIdx];
   const ts = curTS();
-  const nextIdx = state.topicIdx + 1;
-  const nextTopic_ = TOPICS[nextIdx];
+  const isFree = state.mode === 'free';
+  // 次のセクション決定ロジック: 順次→index+1、自由→未完了の最初
+  let nextIdx;
+  if(isFree){
+    nextIdx = topicStates.findIndex((t,i)=> !t.completed);
+  } else {
+    nextIdx = state.topicIdx + 1;
+  }
+  const nextTopic_ = (nextIdx>=0 && nextIdx<TOPICS.length) ? TOPICS[nextIdx] : null;
   const completedCount = topicStates.filter(t=>t.completed).length;
   const entries = Object.values(answerLog).filter(e=>e.topicIdx===state.topicIdx);
   const firstTryCount = entries.filter(e=>e.firstTry===true).length;
@@ -2678,21 +3068,40 @@ function renderSectionComplete(){
         🔄 総試行回数: <b>${totalAttempts}</b> 回<br>
         📊 全体進捗: <b>${completedCount} / ${TOPICS.length}</b> セクション完了
       </div>
-      <div style="background:#fff;border:1px solid #3498db;border-radius:8px;padding:12px 16px;margin:14px auto;max-width:400px;">
-        <div style="font-size:14px;color:#2c3e50;">次のセクション:</div>
+      ${nextTopic_ ? `<div style="background:#fff;border:1px solid #3498db;border-radius:8px;padding:12px 16px;margin:14px auto;max-width:400px;">
+        <div style="font-size:14px;color:#2c3e50;">${isFree?'おすすめの次のセクション（未完了）:':'次のセクション:'}</div>
         <div style="font-size:16px;font-weight:bold;color:#2980b9;margin:4px 0;">${escapeHtml(nextTopic_.title)}</div>
         <div style="font-size:13px;color:#7f8c8d;">その調子でがんばりましょう！</div>
-      </div>
+      </div>` : ''}
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
-        <button id="go-next" style="background:#27ae60;min-height:48px;font-size:15px;padding:12px 28px;">次のセクションへ ▶</button>
+        ${nextTopic_ ? `<button id="go-next" style="background:#27ae60;min-height:48px;font-size:15px;padding:12px 28px;">${isFree?'おすすめの次へ ▶':'次のセクションへ ▶'}</button>` : ''}
+        ${isFree ? `<button id="go-picker" style="background:#16a085;min-height:48px;font-size:14px;padding:12px 20px;">📋 セクション一覧から選ぶ</button>` : ''}
         <button id="show-mid-radar" style="background:#3498db;min-height:48px;font-size:14px;padding:12px 20px;">📊 現在の一発正解率を確認</button>
       </div>
     </div>`;
 
-  document.getElementById('go-next').onclick = ()=>{
-    state.showingSectionComplete = false;
-    nextTopic();
-  };
+  if(document.getElementById('go-next')){
+    document.getElementById('go-next').onclick = ()=>{
+      state.showingSectionComplete = false;
+      if(isFree && nextTopic_){
+        state.topicIdx = nextIdx;
+        initTopic();
+        render();
+        window.scrollTo({top:0, behavior:'smooth'});
+      } else {
+        nextTopic();
+      }
+    };
+  }
+  if(document.getElementById('go-picker')){
+    document.getElementById('go-picker').onclick = ()=>{
+      state.showingSectionComplete = false;
+      render();
+      // 画面下部のセクション一覧にスクロール
+      const topicListCard = document.getElementById('topic-list');
+      if(topicListCard) topicListCard.scrollIntoView({behavior:'smooth', block:'start'});
+    };
+  }
   document.getElementById('show-mid-radar').onclick = ()=>{
     state.showingMidRadar = true;
     state.showingSectionComplete = false;
@@ -3041,21 +3450,50 @@ function renderRemediationQuestion(){
     ${caseBlock}
     ${imgBlock}
     ${q.source ? `<div style="font-size:12px;color:#7f8c8d;margin-bottom:6px;padding:3px 8px;background:#f8f9fa;border-radius:4px;display:inline-block;">📋 <b>${escapeHtml(q.source)}</b></div>` : ''}
-    <div><b>Q.</b> ${escapeHtml(q.q)}</div>
+    <div><b>Q.</b> ${escapeHtml(q.q)} ${multiSelectBadge(q)}</div>
+    ${isMultiSelect(q) ? `<div class="meta" style="color:#8e44ad;font-size:13px;">※ この問題は <b>${q.ans.length}つ</b> 選んでください</div>` : ''}
     <ol class="choices" id="choices">
       ${q.choices.map((c,i)=>`<li data-i="${i}">${String.fromCharCode(0x2460+i)} ${escapeHtml(c)}</li>`).join('')}
     </ol>
+    <div id="selection-info-rem" style="font-size:13px;color:#666;margin:6px 0;"></div>
     <div id="feedback"></div>
     <button id="submit">解答する</button>
     <button id="peek-rem" style="background:#7f8c8d">ノートを見る 📖</button>`;
 
+  state.selected = isMultiSelect(q) ? [] : null;
   const choicesEl = document.getElementById('choices');
+  const infoEl = document.getElementById('selection-info-rem');
+  const updateInfo = ()=>{
+    if(isMultiSelect(q) && infoEl){
+      const need = q.ans.length, have = (state.selected||[]).length;
+      infoEl.textContent = `選択中: ${have} / ${need}`;
+      infoEl.style.color = have===need ? '#27ae60' : '#e67e22';
+    }
+  };
+  updateInfo();
   choicesEl.querySelectorAll('li').forEach(li=>{
     li.onclick = ()=>{
       if(state.answered) return;
-      choicesEl.querySelectorAll('li').forEach(x=>x.classList.remove('selected'));
-      li.classList.add('selected');
-      state.selected = parseInt(li.dataset.i);
+      const idx = parseInt(li.dataset.i);
+      if(isMultiSelect(q)){
+        const arr = state.selected || [];
+        const pos = arr.indexOf(idx);
+        if(pos>=0){ arr.splice(pos,1); li.classList.remove('selected'); }
+        else {
+          if(arr.length >= q.ans.length){
+            const first = arr.shift();
+            const firstLi = choicesEl.querySelector(`li[data-i="${first}"]`);
+            if(firstLi) firstLi.classList.remove('selected');
+          }
+          arr.push(idx); li.classList.add('selected');
+        }
+        state.selected = arr;
+      } else {
+        choicesEl.querySelectorAll('li').forEach(x=>x.classList.remove('selected'));
+        li.classList.add('selected');
+        state.selected = idx;
+      }
+      updateInfo();
     };
   });
   document.getElementById('submit').onclick = submitRemediationAnswer;
@@ -3078,13 +3516,19 @@ function submitRemediationAnswer(){
   const item = state.remediationQueue[state.remediationCurrentIdx];
   const topic = TOPICS[item.topicIdx];
   const q = topic.questions[item.qIdx];
-  if(state.selected===null){ alert('選択肢を選んでください'); return; }
+  if(isMultiSelect(q)){
+    const need = q.ans.length, have = (state.selected||[]).length;
+    if(have !== need){ alert(`${need}つの選択肢を選んでください（現在 ${have} 個選択中）`); return; }
+  } else {
+    if(state.selected===null){ alert('選択肢を選んでください'); return; }
+  }
   state.answered = true;
   const lis = document.querySelectorAll('#choices li');
-  lis[q.ans].classList.add('correct');
+  if(isMultiSelect(q)) q.ans.forEach(a=>lis[a].classList.add('correct'));
+  else lis[q.ans].classList.add('correct');
   const fb = document.getElementById('feedback');
 
-  if(state.selected === q.ans){
+  if(isAnswerCorrect(state.selected, q.ans)){
     logAttempt(true, true);
     state.remediationMastered++;
     fb.innerHTML = `<div class="feedback ok">⭕ 正解！ ${escapeHtml(q.exp)}</div>${renderQBLinks(q)}`;
@@ -3117,7 +3561,11 @@ function submitRemediationAnswer(){
     updateProgress();
   } else {
     logAttempt(false, true);
-    lis[state.selected].classList.add('wrong');
+    if(Array.isArray(state.selected)){
+      state.selected.forEach(i=>{ if(lis[i]) lis[i].classList.add('wrong'); });
+    } else if(state.selected!=null){
+      if(lis[state.selected]) lis[state.selected].classList.add('wrong');
+    }
     fb.innerHTML = `<div class="feedback ng">❌ 不正解。${escapeHtml(q.exp)}</div>
       ${renderQBLinks(q)}
       <div class="meta">この問題は後でもう一度出題されます。</div>`;
@@ -3175,12 +3623,264 @@ function renderRemediationComplete(){
         本当にお疲れ様でした。🌸
       </div>
       <div class="final-btns">
+        ${!state.finalTest || !state.finalTest.completed ? `<button id="start-final-test" style="background:#e67e22">🎯 最終確認テスト（30問）を受ける</button>` : `<button id="show-final-test-result" style="background:#f39c12">📝 最終確認テスト結果を見る</button>`}
         <button onclick="document.getElementById('show-log').click();window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" style="background:#8e44ad">📊 学習ログを確認</button>
         <button onclick="document.getElementById('send-log').scrollIntoView({behavior:'smooth',block:'center'})" style="background:#c0392b">📧 指導医に提出</button>
         <button onclick="location.reload()" style="background:#7f8c8d">🔄 もう一度最初から</button>
       </div>
     </div>`;
+  const sft = document.getElementById('start-final-test');
+  if(sft) sft.onclick = startFinalTest;
+  const sftr = document.getElementById('show-final-test-result');
+  if(sftr) sftr.onclick = ()=>{ state.showingFinalTestResult = true; render(); window.scrollTo({top:0,behavior:'smooth'}); };
   launchConfetti();
+}
+
+/* ===== 最終確認テスト ===== */
+const FINAL_TEST_TOTAL = 30;
+function startFinalTest(){
+  if(state.finalTest && state.finalTest.completed){
+    if(!confirm('既に完了した最終確認テストがあります。再受験しますか？（既存結果は上書きされます）')) return;
+  }
+  // 各セクションから使用済み問題を除外した利用可能リストを作る
+  const usedByTopic = {};
+  Object.values(answerLog).forEach(e=>{ (usedByTopic[e.topicIdx]=usedByTopic[e.topicIdx]||new Set()).add(e.qIdx); });
+  Object.values(remediationLog).forEach(e=>{ (usedByTopic[e.topicIdx]=usedByTopic[e.topicIdx]||new Set()).add(e.qIdx); });
+
+  // 各セクションから未出題を優先的に、不足ならば既出を補充
+  const candidatesPerTopic = TOPICS.map((t,i)=>{
+    const used = usedByTopic[i] || new Set();
+    const all = t.questions.map((_,qi)=>qi);
+    const unused = all.filter(qi=>!used.has(qi));
+    const available = unused.length>0 ? unused : all;
+    return { topicIdx:i, available };
+  });
+
+  // バランス配分：TOPICS.length>FINAL_TEST_TOTAL の場合、各セクションから1問ずつサンプル抽選でTOPICS.length問にし、さらに30問に絞る
+  const picks = [];
+  // 各セクションから1問ランダム選択
+  const shuffledTopics = shuffle(candidatesPerTopic.filter(c=>c.available.length>0));
+  shuffledTopics.forEach(c=>{
+    const q = c.available[Math.floor(Math.random()*c.available.length)];
+    picks.push({ topicIdx:c.topicIdx, qIdx:q });
+  });
+  // 30問以下の場合はランダムに追加（重複を避けつつ）
+  let sampled = shuffle(picks).slice(0, FINAL_TEST_TOTAL);
+  if(sampled.length < FINAL_TEST_TOTAL){
+    // 追加が必要 → 全問題プールからサンプリング
+    const pool = [];
+    TOPICS.forEach((t,i)=>t.questions.forEach((_,qi)=>pool.push({topicIdx:i, qIdx:qi})));
+    const selSet = new Set(sampled.map(s=>`${s.topicIdx}-${s.qIdx}`));
+    const remaining = shuffle(pool).filter(p=>!selSet.has(`${p.topicIdx}-${p.qIdx}`));
+    sampled = sampled.concat(remaining.slice(0, FINAL_TEST_TOTAL - sampled.length));
+  }
+
+  state.finalTest = {
+    questions: sampled,
+    answers: new Array(sampled.length).fill(null),
+    currentIdx: 0,
+    total: sampled.length,
+    startedAt: new Date().toISOString(),
+    endedAt: null,
+    completed: false,
+  };
+  state.showingFinalTest = true;
+  state.showingFinalTestResult = false;
+  saveProgress();
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderFinalTest(){
+  const ft = state.finalTest;
+  if(!ft){ state.showingFinalTest=false; render(); return; }
+  const item = ft.questions[ft.currentIdx];
+  const topic = TOPICS[item.topicIdx];
+  const q = topic.questions[item.qIdx];
+  const isClinical = q.type==='clinical';
+  const progressPct = Math.round(ft.currentIdx / ft.total * 100);
+  const currentSelected = ft.answers[ft.currentIdx];
+  const caseBlock = isClinical && q.vignette
+    ? `<div class="clinical-case"><b>【症例】</b>\n${escapeHtml(q.vignette)}</div>` : '';
+  const imgBlock = q.img
+    ? `<div class="img-slot"><img src="images/${q.img}" alt="${escapeHtml(q.imgAlt||'')}" onerror="this.style.display='none';"></div>` : '';
+
+  main.innerHTML = `
+    <div style="background:#fef5e7;border:2px solid #e67e22;border-radius:10px;padding:12px 16px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+        <div style="font-weight:bold;color:#b9770e;font-size:15px;">🎯 最終確認テスト（全 ${ft.total} 問／採点は最後にまとめて）</div>
+        <div style="font-size:13px;color:#555;">第 <b>${ft.currentIdx+1}</b> 問 / ${ft.total}</div>
+      </div>
+      <div class="bar" style="margin-top:8px;height:10px;background:#fad7a0;border-radius:5px;"><div style="height:100%;width:${progressPct}%;background:#e67e22;border-radius:5px;"></div></div>
+    </div>
+    <h3 style="color:#34495e;">${escapeHtml(topic.title)} ${isClinical?'<span class="badge clinical">臨床実地問題</span>':''} ${multiSelectBadge(q)}</h3>
+    ${caseBlock}
+    ${imgBlock}
+    <div><b>Q.</b> ${escapeHtml(q.q)}</div>
+    ${isMultiSelect(q) ? `<div class="meta" style="color:#8e44ad;font-size:13px;">※ この問題は <b>${q.ans.length}つ</b> 選んでください</div>` : ''}
+    <ol class="choices" id="ft-choices">
+      ${q.choices.map((c,i)=>{
+        const sel = Array.isArray(currentSelected) ? currentSelected.includes(i) : currentSelected===i;
+        return `<li data-i="${i}" ${sel?'class="selected"':''}>${String.fromCharCode(0x2460+i)} ${escapeHtml(c)}</li>`;
+      }).join('')}
+    </ol>
+    <div id="ft-selection-info" style="font-size:13px;color:#666;margin:6px 0;"></div>
+    <div style="display:flex;gap:10px;justify-content:space-between;margin-top:12px;flex-wrap:wrap;">
+      <button id="ft-prev" style="background:#7f8c8d;${ft.currentIdx===0?'visibility:hidden':''}">◀ 前の問題</button>
+      ${ft.currentIdx < ft.total-1
+        ? `<button id="ft-next" style="background:#3498db">次の問題 ▶</button>`
+        : `<button id="ft-finish" style="background:#e67e22">✅ 採点する（全問回答後）</button>`}
+    </div>
+    <div class="meta" style="margin-top:8px;font-size:12px;color:#888;">※途中で前の問題に戻って解答を変更できます。未解答でも次へ進めますが、最終採点時は不正解扱いとなります。</div>`;
+
+  const ftChoices = document.getElementById('ft-choices');
+  const ftInfo = document.getElementById('ft-selection-info');
+  const updateFtInfo = ()=>{
+    if(isMultiSelect(q) && ftInfo){
+      const need = q.ans.length;
+      const cur = ft.answers[ft.currentIdx];
+      const have = Array.isArray(cur) ? cur.length : (cur!=null?1:0);
+      ftInfo.textContent = `選択中: ${have} / ${need}`;
+      ftInfo.style.color = have===need ? '#27ae60' : '#e67e22';
+    }
+  };
+  updateFtInfo();
+  ftChoices.querySelectorAll('li').forEach(li=>{
+    li.onclick = ()=>{
+      const idx = parseInt(li.dataset.i);
+      if(isMultiSelect(q)){
+        const arr = Array.isArray(ft.answers[ft.currentIdx]) ? ft.answers[ft.currentIdx].slice() : [];
+        const pos = arr.indexOf(idx);
+        if(pos>=0){ arr.splice(pos,1); li.classList.remove('selected'); }
+        else {
+          if(arr.length >= q.ans.length){
+            const first = arr.shift();
+            const firstLi = ftChoices.querySelector(`li[data-i="${first}"]`);
+            if(firstLi) firstLi.classList.remove('selected');
+          }
+          arr.push(idx); li.classList.add('selected');
+        }
+        ft.answers[ft.currentIdx] = arr;
+      } else {
+        ftChoices.querySelectorAll('li').forEach(x=>x.classList.remove('selected'));
+        li.classList.add('selected');
+        ft.answers[ft.currentIdx] = idx;
+      }
+      updateFtInfo();
+      scheduleSave();
+    };
+  });
+  const prev = document.getElementById('ft-prev');
+  if(prev) prev.onclick = ()=>{ ft.currentIdx--; render(); window.scrollTo({top:0,behavior:'smooth'}); };
+  const next = document.getElementById('ft-next');
+  if(next) next.onclick = ()=>{ ft.currentIdx++; render(); window.scrollTo({top:0,behavior:'smooth'}); };
+  const fin = document.getElementById('ft-finish');
+  if(fin) fin.onclick = finishFinalTest;
+}
+
+function finishFinalTest(){
+  const ft = state.finalTest;
+  const unanswered = ft.answers.filter(a=>{
+    if(a===null) return true;
+    if(Array.isArray(a) && a.length===0) return true;
+    return false;
+  }).length;
+  if(unanswered>0){
+    if(!confirm(`未解答が ${unanswered} 問あります。このまま採点してよろしいですか？（未解答は不正解扱い）`)) return;
+  } else {
+    if(!confirm('採点を開始します。よろしいですか？')) return;
+  }
+  ft.endedAt = new Date().toISOString();
+  // 採点
+  let correct = 0;
+  const perSection = {};
+  ft.questions.forEach((item, i)=>{
+    const q = TOPICS[item.topicIdx].questions[item.qIdx];
+    const sel = ft.answers[i];
+    const isCorrect = isAnswerCorrect(sel, q.ans);
+    if(isCorrect) correct++;
+    if(!perSection[item.topicIdx]) perSection[item.topicIdx] = { title: TOPICS[item.topicIdx].title, total:0, correct:0 };
+    perSection[item.topicIdx].total++;
+    if(isCorrect) perSection[item.topicIdx].correct++;
+  });
+  ft.correct = correct;
+  ft.pct = Math.round(correct/ft.total*100);
+  const durationMs = new Date(ft.endedAt) - new Date(ft.startedAt);
+  ft.durationMin = Math.max(1, Math.round(durationMs/60000));
+  ft.sectionBreakdown = Object.values(perSection).map(b=>({
+    title: b.title, total: b.total, correct: b.correct, pct: Math.round(b.correct/b.total*100)
+  })).sort((a,b)=>a.pct-b.pct);
+  ft.completed = true;
+
+  state.showingFinalTest = false;
+  state.showingFinalTestResult = true;
+  saveProgress();
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function renderFinalTestResult(){
+  const ft = state.finalTest;
+  if(!ft || !ft.completed){ state.showingFinalTestResult=false; render(); return; }
+  const weakBreakdown = ft.sectionBreakdown.filter(b=>b.pct<75);
+  const perfectBreakdown = ft.sectionBreakdown.filter(b=>b.pct===100);
+  let grade, gradeColor, gradeComment;
+  if(ft.pct>=90){ grade='優'; gradeColor='#27ae60'; gradeComment='素晴らしい成績です！'; }
+  else if(ft.pct>=80){ grade='良'; gradeColor='#3498db'; gradeComment='良好な成績です！'; }
+  else if(ft.pct>=70){ grade='可'; gradeColor='#f39c12'; gradeComment='合格水準には達しています。'; }
+  else if(ft.pct>=60){ grade='要復習'; gradeColor='#e67e22'; gradeComment='弱点セクションを再学習しましょう。'; }
+  else { grade='不可'; gradeColor='#c0392b'; gradeComment='基礎から再学習することをおすすめします。'; }
+
+  main.innerHTML = `
+    <div style="background:linear-gradient(135deg,#fff5e6,#fef9e7);border:3px solid #e67e22;border-radius:16px;padding:24px 20px;text-align:center;margin-bottom:16px;">
+      <div style="font-size:44px;">🎯</div>
+      <h2 style="color:#b9770e;margin:0;">最終確認テスト 結果</h2>
+      <div style="margin-top:12px;">
+        <span style="font-size:80px;font-weight:bold;color:${gradeColor};">${ft.pct}<span style="font-size:40px;">%</span></span>
+        <div style="margin-top:-8px;font-size:18px;color:${gradeColor};font-weight:bold;">評価: ${grade}</div>
+        <div style="margin-top:6px;color:#555;">${escapeHtml(gradeComment)}</div>
+      </div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:14px;">
+        <div class="kpi" style="background:#fff;padding:10px 16px;border-radius:8px;border:1px solid #ddd;">出題: <b>${ft.total}</b> 問</div>
+        <div class="kpi" style="background:#fff;padding:10px 16px;border-radius:8px;border:1px solid #ddd;">正解: <b style="color:#27ae60;">${ft.correct}</b> 問</div>
+        <div class="kpi" style="background:#fff;padding:10px 16px;border-radius:8px;border:1px solid #ddd;">不正解: <b style="color:#c0392b;">${ft.total-ft.correct}</b> 問</div>
+        <div class="kpi" style="background:#fff;padding:10px 16px;border-radius:8px;border:1px solid #ddd;">所要時間: <b>${ft.durationMin}</b> 分</div>
+      </div>
+    </div>
+    <h3 style="color:#2c3e50;">📊 セクション別 正答率</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:13px;background:#fff;">
+      <thead><tr style="background:#ecf0f1;"><th style="border:1px solid #ddd;padding:6px;">セクション</th><th style="border:1px solid #ddd;padding:6px;">出題</th><th style="border:1px solid #ddd;padding:6px;">正解</th><th style="border:1px solid #ddd;padding:6px;">正答率</th></tr></thead>
+      <tbody>
+        ${ft.sectionBreakdown.map(b=>{
+          const col = b.pct===100?'#27ae60':b.pct>=75?'#3498db':b.pct>=50?'#e67e22':'#c0392b';
+          return `<tr><td style="border:1px solid #ddd;padding:6px;">${escapeHtml(b.title)}</td><td style="border:1px solid #ddd;padding:6px;text-align:center;">${b.total}</td><td style="border:1px solid #ddd;padding:6px;text-align:center;">${b.correct}</td><td style="border:1px solid #ddd;padding:6px;text-align:center;color:${col};font-weight:bold;">${b.pct}%</td></tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <h3 style="color:#c0392b;margin-top:20px;">📝 問題別 解答詳細</h3>
+    <details>
+      <summary style="cursor:pointer;padding:8px;background:#ecf0f1;border-radius:4px;font-weight:bold;">クリックで展開（${ft.total}問）</summary>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;background:#fff;margin-top:8px;">
+        <thead><tr style="background:#ecf0f1;"><th style="border:1px solid #ddd;padding:4px;">#</th><th style="border:1px solid #ddd;padding:4px;">セクション</th><th style="border:1px solid #ddd;padding:4px;">問題</th><th style="border:1px solid #ddd;padding:4px;">回答</th><th style="border:1px solid #ddd;padding:4px;">正解</th><th style="border:1px solid #ddd;padding:4px;">判定</th></tr></thead>
+        <tbody>
+          ${ft.questions.map((item, i)=>{
+            const q = TOPICS[item.topicIdx].questions[item.qIdx];
+            const sel = ft.answers[i];
+            const isCorrect = isAnswerCorrect(sel, q.ans);
+            const selTxt = (sel===null || (Array.isArray(sel) && sel.length===0))?'（未解答）': formatAnswer(sel);
+            const corTxt = formatAnswer(q.ans);
+            return `<tr style="background:${isCorrect?'#eafaf1':'#fdedec'};"><td style="border:1px solid #ddd;padding:4px;text-align:center;">${i+1}</td><td style="border:1px solid #ddd;padding:4px;">${escapeHtml(TOPICS[item.topicIdx].title)}</td><td style="border:1px solid #ddd;padding:4px;">${escapeHtml(deriveName(q))}</td><td style="border:1px solid #ddd;padding:4px;text-align:center;">${selTxt}</td><td style="border:1px solid #ddd;padding:4px;text-align:center;">${corTxt}</td><td style="border:1px solid #ddd;padding:4px;text-align:center;">${isCorrect?'⭕':'❌'}</td></tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </details>
+    <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button id="ft-back" style="background:#7f8c8d;">◀ 完了画面に戻る</button>
+      <button id="ft-retry" style="background:#e67e22;">🔄 もう一度最終確認テストを受ける</button>
+      <button onclick="document.getElementById('export-report').click()" style="background:#c0392b;">📄 HTMLレポート出力</button>
+    </div>`;
+  document.getElementById('ft-back').onclick = ()=>{ state.showingFinalTestResult=false; render(); window.scrollTo({top:0,behavior:'smooth'}); };
+  document.getElementById('ft-retry').onclick = ()=>{ state.showingFinalTestResult=false; startFinalTest(); };
 }
 
 /* ===== 解答ログ表示 ===== */
@@ -3348,7 +4048,10 @@ async function exportLogCSV(returnOnly){
   lines.push(['時刻','セクション','問題名','正誤','選択番号','種別'].join(','));
   const allHistory = [...attemptHistory, ...remediationHistory].sort((a,b)=>a.time.localeCompare(b.time));
   allHistory.forEach(a=>{
-    const row = [a.time, a.topicTitle, a.name, a.correct?'正':'誤', (a.selected??'')+1, a.isRemediation?'弱点補強':'本編']
+    const selTxt = Array.isArray(a.selected)
+      ? a.selected.map(i=>i+1).join(';')
+      : (a.selected==null ? '' : (a.selected+1));
+    const row = [a.time, a.topicTitle, a.name, a.correct?'正':'誤', selTxt, a.isRemediation?'弱点補強':'本編']
       .map(v=>`"${String(v).replace(/"/g,'""')}"`);
     lines.push(row.join(','));
   });
@@ -3373,6 +4076,271 @@ async function exportLogCSV(returnOnly){
   a.click();
   URL.revokeObjectURL(url);
   return { csv, info, summary:s };
+}
+
+/* ===== 視覚的HTMLレポート出力 ===== */
+async function exportHtmlReport(){
+  const info = getStudentInfo();
+  const summary = computeSummary();
+  const scores = computeRadarScores();
+  const entries = Object.values(answerLog);
+  entries.sort((a,b)=> a.topicIdx!==b.topicIdx ? a.topicIdx-b.topicIdx : a.qIdx-b.qIdx);
+  const remEntries = Object.values(remediationLog);
+  remEntries.sort((a,b)=> a.topicIdx!==b.topicIdx ? a.topicIdx-b.topicIdx : a.qIdx-b.qIdx);
+  const finalTest = state.finalTest || null;  // 確認テスト結果（④で追加）
+  const subject = '血液内科';
+  const now = new Date();
+  const data = {
+    reportVersion: 1,
+    subject: subject,
+    generatedAt: now.toISOString(),
+    toolVersion: 'v2',
+    student: { id: info.id, name: info.name, affiliation: info.affiliation },
+    comment: info.comment,
+    mode: state.mode,
+    summary: summary,
+    radarScores: scores,
+    topics: TOPICS.map((t,i)=>({
+      idx: i, title: t.title,
+      completed: topicStates[i].completed,
+      mastered: topicStates[i].mastered,
+      total: topicStates[i].total,
+    })),
+    answerLog: entries,
+    remediationLog: remEntries,
+    attemptHistory: attemptHistory,
+    remediationHistory: remediationHistory,
+    finalTest: finalTest,
+    remediationComplete: !!state.remediationComplete,
+  };
+  const json = JSON.stringify(data);
+  const sig = await hmacSha256Hex(HMAC_SECRET_KEY, json);
+  data.signature = sig;
+
+  // SVG レーダーチャート描画用コード（簡易版）
+  const radarSvg = buildReportRadar(scores);
+  const weakList = scores.filter(s=>s.attemptedQ>0 && s.pct<75).sort((a,b)=>a.pct-b.pct);
+  const topSections = scores.filter(s=>s.attemptedQ>0 && s.pct>=90).sort((a,b)=>b.pct-a.pct);
+
+  // 総評コメント自動生成
+  const overallFirstTryPct = entries.length>0
+    ? Math.round(entries.filter(e=>e.firstTry===true).length / entries.length * 100) : 0;
+  let overallComment;
+  if(overallFirstTryPct >= 85) overallComment = '素晴らしい成績です。強固な知識基盤が築けています。臨床応用や最新ガイドラインにも目を向けましょう。';
+  else if(overallFirstTryPct >= 70) overallComment = '良好な成績です。弱点セクションを集中的に復習すれば更に伸びます。';
+  else if(overallFirstTryPct >= 50) overallComment = '基礎は理解できています。弱点セクションをノート中心に再学習しましょう。';
+  else overallComment = '基礎から丁寧に復習することをおすすめします。教科書の該当章とセット学習を。';
+
+  const finalTestBlock = finalTest ? `
+    <section>
+      <h2>📝 最終確認テスト結果</h2>
+      <div class="kpi-row">
+        <div class="kpi"><span class="kpi-label">出題数</span><span class="kpi-value">${finalTest.total}</span></div>
+        <div class="kpi"><span class="kpi-label">正解数</span><span class="kpi-value">${finalTest.correct}</span></div>
+        <div class="kpi"><span class="kpi-label">正答率</span><span class="kpi-value">${finalTest.pct}%</span></div>
+        <div class="kpi"><span class="kpi-label">所要時間</span><span class="kpi-value">${finalTest.durationMin||'-'}分</span></div>
+      </div>
+      ${finalTest.sectionBreakdown ? `
+        <table class="tbl">
+          <thead><tr><th>セクション</th><th>出題</th><th>正解</th><th>正答率</th></tr></thead>
+          <tbody>
+            ${finalTest.sectionBreakdown.map(b=>`<tr><td>${escapeHtml(b.title)}</td><td>${b.total}</td><td>${b.correct}</td><td>${b.pct}%</td></tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+    </section>` : '';
+
+  const html = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>血液内科 学習レポート - ${escapeHtml(info.name||info.id||'未記入')}</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Yu Gothic UI','Meiryo',sans-serif;max-width:900px;margin:0 auto;padding:24px;color:#2c3e50;background:#fafbfc;line-height:1.6;}
+  h1{color:#c0392b;border-bottom:3px solid #c0392b;padding-bottom:8px;}
+  h2{color:#2980b9;border-left:5px solid #2980b9;padding-left:12px;margin-top:32px;}
+  .header-info{background:#fff;border:1px solid #ddd;border-radius:8px;padding:14px 18px;margin-bottom:16px;}
+  .header-info table{border-collapse:collapse;width:100%;}
+  .header-info td{padding:4px 10px;}
+  .header-info td:first-child{font-weight:bold;color:#555;width:120px;}
+  .kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0;}
+  .kpi{background:#fff;border:1px solid #dcdfe3;border-radius:8px;padding:12px 20px;flex:1;min-width:140px;text-align:center;box-shadow:0 2px 4px rgba(0,0,0,.03);}
+  .kpi-label{display:block;font-size:12px;color:#7f8c8d;}
+  .kpi-value{display:block;font-size:26px;font-weight:bold;color:#2c3e50;margin-top:4px;}
+  .tbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;background:#fff;}
+  .tbl th,.tbl td{border:1px solid #dcdfe3;padding:6px 10px;text-align:left;}
+  .tbl th{background:#ecf0f1;}
+  .tbl tr.weak td{background:#fdedec;}
+  .tbl tr.strong td{background:#eafaf1;}
+  .comment-box{background:#fef9e7;border-left:6px solid #f1c40f;padding:12px 16px;margin:12px 0;border-radius:6px;}
+  .radar-wrap{text-align:center;background:#fff;border:1px solid #dcdfe3;border-radius:8px;padding:16px;margin:10px 0;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;background:#3498db;color:#fff;margin-left:6px;}
+  .weak-badge{background:#c0392b;}
+  .strong-badge{background:#27ae60;}
+  .bar{height:14px;background:#ecf0f1;border-radius:7px;overflow:hidden;margin:2px 0;}
+  .bar-fill{height:100%;transition:width .3s;}
+  footer{margin-top:40px;padding-top:16px;border-top:1px dashed #aaa;color:#7f8c8d;font-size:11px;text-align:center;}
+  .sig-box{margin-top:8px;font-size:10px;color:#aaa;background:#f4f4f4;padding:8px;border-radius:4px;word-break:break-all;font-family:monospace;}
+  @media print { body{background:#fff;} .no-print{display:none;} }
+</style>
+</head>
+<body>
+<h1>🩸 血液内科 学習レポート</h1>
+<div class="header-info">
+  <table>
+    <tr><td>氏名</td><td>${escapeHtml(info.name||'(未記入)')}</td></tr>
+    <tr><td>学籍番号</td><td>${escapeHtml(info.id||'(未記入)')}</td></tr>
+    <tr><td>所属</td><td>${escapeHtml(info.affiliation||'(未記入)')}</td></tr>
+    <tr><td>学習モード</td><td>${state.mode==='free'?'自由選択モード':'順次モード'}</td></tr>
+    <tr><td>出力日時</td><td>${now.toLocaleString('ja-JP')}</td></tr>
+  </table>
+</div>
+
+<section>
+  <h2>📊 総合サマリー</h2>
+  <div class="kpi-row">
+    <div class="kpi"><span class="kpi-label">完了セクション</span><span class="kpi-value">${summary.completedSections}/${TOPICS.length}</span></div>
+    <div class="kpi"><span class="kpi-label">一発正解数</span><span class="kpi-value">${summary.firstTry}</span></div>
+    <div class="kpi"><span class="kpi-label">一発正解率</span><span class="kpi-value">${overallFirstTryPct}%</span></div>
+    <div class="kpi"><span class="kpi-label">累積正答率</span><span class="kpi-value">${summary.accuracy}%</span></div>
+  </div>
+  <div class="comment-box">
+    <b>📝 総評：</b> ${escapeHtml(overallComment)}
+  </div>
+</section>
+
+<section>
+  <h2>📈 セクション別 一発正解率レーダーチャート</h2>
+  <div class="radar-wrap">
+    ${radarSvg}
+    <div style="font-size:12px;color:#666;margin-top:6px;">赤破線＝75%（弱点閾値） / 赤＝弱点セクション</div>
+  </div>
+</section>
+
+<section>
+  <h2>⚠️ 弱点セクション <span class="badge weak-badge">${weakList.length}件</span></h2>
+  ${weakList.length===0 ? '<div class="comment-box" style="border-color:#27ae60;background:#eafaf1;">弱点セクションはありません。素晴らしい！</div>' : `
+    <table class="tbl">
+      <thead><tr><th>順位</th><th>セクション</th><th>一発正解率</th><th>解答数</th><th>グラフ</th></tr></thead>
+      <tbody>
+        ${weakList.map((s,i)=>`<tr class="weak">
+          <td>${i+1}</td><td>${escapeHtml(s.fullName||s.name)}</td>
+          <td><b>${s.pct}%</b></td><td>${s.correctFirstTry}/${s.attemptedQ}</td>
+          <td><div class="bar"><div class="bar-fill" style="width:${s.pct}%;background:#c0392b;"></div></div></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`}
+</section>
+
+<section>
+  <h2>🏆 得意セクション <span class="badge strong-badge">${topSections.length}件</span></h2>
+  ${topSections.length===0 ? '<div style="color:#888;font-size:13px;">90%以上の得意セクションはまだありません。</div>' : `
+    <table class="tbl">
+      <thead><tr><th>順位</th><th>セクション</th><th>一発正解率</th><th>解答数</th></tr></thead>
+      <tbody>
+        ${topSections.slice(0,10).map((s,i)=>`<tr class="strong">
+          <td>${i+1}</td><td>${escapeHtml(s.fullName||s.name)}</td>
+          <td><b>${s.pct}%</b></td><td>${s.correctFirstTry}/${s.attemptedQ}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`}
+</section>
+
+<section>
+  <h2>📋 セクション別 詳細</h2>
+  <table class="tbl">
+    <thead><tr><th>#</th><th>セクション</th><th>完了</th><th>習得数</th><th>一発正解率</th><th>バー</th></tr></thead>
+    <tbody>
+      ${scores.map((s,i)=>{
+        const ts = topicStates[i];
+        const isWeak = s.attemptedQ>0 && s.pct<75;
+        const barColor = isWeak?'#c0392b':(s.pct>=90?'#27ae60':'#3498db');
+        return `<tr ${isWeak?'class="weak"':''}>
+          <td>${String(i+1).padStart(2,'0')}</td>
+          <td>${escapeHtml(TOPICS[i].title)}</td>
+          <td>${ts.completed?'✅':'—'}</td>
+          <td>${ts.mastered}/${ts.total||5}</td>
+          <td>${s.attemptedQ>0?s.pct+'%':'未実施'}</td>
+          <td><div class="bar"><div class="bar-fill" style="width:${s.pct}%;background:${barColor};"></div></div></td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>
+</section>
+
+${finalTestBlock}
+
+${info.comment ? `<section><h2>💬 学習者コメント</h2><div class="comment-box">${escapeHtml(info.comment)}</div></section>` : ''}
+
+<footer>
+  本レポートは血液内科総合学習ツール v2 により自動生成されました。<br>
+  ファイル内に学習データ(JSON)が埋め込まれており、教員用集約ツールで一括解析できます。
+</footer>
+<scr${''}ipt type="application/json" id="hematology-report-data">${json.replace(/</g,'\\u003c')}</scr${''}ipt>
+<scr${''}ipt>window.__hematologySignature="${sig}";</scr${''}ipt>
+<div class="sig-box no-print">Signature(HMAC-SHA256): ${sig}</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:'text/html;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const datePart = now.toISOString().slice(0,10);
+  const idPart = info.id ? `_${info.id}` : '';
+  a.href = url;
+  a.download = `血液内科学習レポート${idPart}_${datePart}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* レポート用レーダーチャート（37軸・インラインSVG） */
+function buildReportRadar(scores){
+  const cx=240, cy=240, maxR=180;
+  const n = scores.length;
+  if(n===0) return '';
+  let grid='';
+  for(let lv=1; lv<=4; lv++){
+    const r = maxR*lv/4;
+    const pts=[];
+    for(let i=0;i<n;i++){
+      const a = (Math.PI*2*i/n) - Math.PI/2;
+      pts.push(`${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`);
+    }
+    grid += `<polygon points="${pts.join(' ')}" fill="none" stroke="${lv===3?'#e74c3c':'#ddd'}" stroke-width="${lv===3?1.5:0.5}" ${lv===3?'stroke-dasharray="6,3" opacity="0.7"':''}/>`;
+  }
+  let axes='';
+  for(let i=0;i<n;i++){
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    const x2 = cx + maxR*Math.cos(a);
+    const y2 = cy + maxR*Math.sin(a);
+    axes += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#e0e0e0" stroke-width="0.5"/>`;
+    const labelR = maxR+14;
+    const lx = cx + labelR*Math.cos(a);
+    const ly = cy + labelR*Math.sin(a);
+    const anchor = Math.abs(a+Math.PI/2)<0.1?'middle':(Math.cos(a)<-0.1?'end':'start');
+    const isWeak = scores[i].attemptedQ>0 && scores[i].pct<75;
+    axes += `<text x="${lx}" y="${ly+3}" text-anchor="${anchor}" font-size="9" fill="${isWeak?'#c0392b':'#555'}" font-weight="${isWeak?'bold':'normal'}">${escapeHtml(scores[i].name)}</text>`;
+  }
+  const dataPts = scores.map((s,i)=>{
+    const r = maxR*s.pct/100;
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    return `${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;
+  }).join(' ');
+  let dots='';
+  scores.forEach((s,i)=>{
+    const r = maxR*s.pct/100;
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    const x = cx+r*Math.cos(a), y = cy+r*Math.sin(a);
+    const isWeak = s.attemptedQ>0 && s.pct<75;
+    dots += `<circle cx="${x}" cy="${y}" r="${isWeak?4:2.5}" fill="${isWeak?'#c0392b':'#3498db'}" stroke="#fff" stroke-width="1"/>`;
+  });
+  const r75 = maxR*0.75;
+  return `<svg viewBox="0 0 500 500" width="500" height="500" xmlns="http://www.w3.org/2000/svg" style="max-width:100%;height:auto;">
+    ${grid}${axes}
+    <polygon points="${dataPts}" fill="rgba(52,152,219,0.2)" stroke="#3498db" stroke-width="1.5"/>
+    ${dots}
+    <text x="${cx + r75 + 3}" y="${cy + 4}" font-size="9" fill="#c0392b" font-weight="bold">← 75%</text>
+    <text x="${cx + r75 + 6}" y="${cy + 16}" font-size="8" fill="#c0392b">（弱点閾値）</text>
+  </svg>`;
 }
 
 /* ===== 学生情報取得 ===== */
@@ -3680,9 +4648,57 @@ if('serviceWorker' in navigator){
 }
 
 /* ===== 起動 ===== */
+function renderResumeDialog(saved){
+  const savedDate = saved.savedAt ? new Date(saved.savedAt).toLocaleString('ja-JP') : '(不明)';
+  const completed = (saved.topicStates||[]).filter(t=>t && t.completed).length;
+  const total = TOPICS.length;
+  const pct = total>0 ? Math.round(completed/total*100) : 0;
+  const inRem = saved.state && saved.state.showingRemediation;
+  const remDone = saved.state && saved.state.remediationComplete;
+  let statusTxt = `${completed} / ${total} セクション完了（${pct}%）`;
+  if(inRem && !remDone) statusTxt += '／弱点補強フェーズ中';
+  if(remDone) statusTxt += '／弱点補強完了';
+
+  main.innerHTML = `
+    <div style="max-width:560px;margin:28px auto;padding:24px;border:2px solid #3498db;border-radius:12px;background:#f4faff;">
+      <h2 style="color:#2c3e50;margin-top:0;">📂 前回の続きがあります</h2>
+      <div style="font-size:15px;line-height:1.7;margin-bottom:18px;">
+        <div>保存日時： <b>${escapeHtml(savedDate)}</b></div>
+        <div>進捗： <b>${escapeHtml(statusTxt)}</b></div>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button id="resume-yes" style="background:#27ae60;min-height:48px;padding:12px 22px;font-size:15px;">▶ 続きから始める</button>
+        <button id="resume-no" style="background:#e67e22;min-height:48px;padding:12px 22px;font-size:15px;">🆕 最初からやり直す</button>
+      </div>
+      <div class="meta" style="margin-top:14px;font-size:12px;color:#888;">※「最初からやり直す」を選ぶと保存データは削除されます。</div>
+    </div>`;
+  document.getElementById('resume-yes').onclick = ()=>{
+    restoreProgress(saved);
+    // currentQがnullの場合はキューから取り直す
+    if(state.currentQ===null || state.currentQ===undefined){
+      const ts = curTS();
+      if(ts && ts.queue && ts.queue.length>0) state.currentQ = ts.queue[0];
+    }
+    render();
+  };
+  document.getElementById('resume-no').onclick = ()=>{
+    if(confirm('本当に最初からやり直しますか？保存データは削除されます。')){
+      clearProgress();
+      location.reload();
+    }
+  };
+  renderTopicList();
+  updateProgress();
+}
+
 if(TOPICS.length > 0){
-  initTopic();
-  render();
+  const saved = loadProgress();
+  if(saved){
+    renderResumeDialog(saved);
+  } else {
+    initTopic();
+    render();
+  }
 } else {
   main.innerHTML = '<div class="meta" style="text-align:center;padding:40px 0;font-size:16px;color:#c0392b">⚠️ TOPICS データが未挿入です。<br><code>/*__TOPICS_DATA_HERE__*/</code> を問題データに置き換えてください。</div>';
   renderTopicList();

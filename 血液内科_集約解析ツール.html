@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>血液内科 学習レポート 集約解析ツール（教員用）</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Yu Gothic UI','Meiryo',sans-serif;max-width:1200px;margin:0 auto;padding:20px;color:#2c3e50;background:#fafbfc;line-height:1.6;}
+  h1{color:#2980b9;border-bottom:3px solid #2980b9;padding-bottom:8px;}
+  h2{color:#c0392b;border-left:5px solid #c0392b;padding-left:12px;margin-top:28px;}
+  .drop-zone{border:3px dashed #3498db;border-radius:12px;padding:40px 20px;text-align:center;background:#ecf0f1;transition:all .2s;cursor:pointer;}
+  .drop-zone.hover{background:#d4e6f1;border-color:#2980b9;}
+  .kpi-row{display:flex;gap:12px;flex-wrap:wrap;margin:16px 0;}
+  .kpi{background:#fff;border:1px solid #dcdfe3;border-radius:8px;padding:12px 20px;flex:1;min-width:160px;text-align:center;}
+  .kpi-label{display:block;font-size:12px;color:#7f8c8d;}
+  .kpi-value{display:block;font-size:28px;font-weight:bold;color:#2c3e50;margin-top:4px;}
+  table{border-collapse:collapse;width:100%;margin-top:10px;font-size:13px;background:#fff;}
+  th,td{border:1px solid #dcdfe3;padding:6px 10px;text-align:left;}
+  th{background:#ecf0f1;cursor:pointer;}
+  th:hover{background:#d5dbdb;}
+  tr.weak{background:#fdedec;}
+  tr.strong{background:#eafaf1;}
+  .bar{height:12px;background:#ecf0f1;border-radius:6px;overflow:hidden;display:inline-block;vertical-align:middle;width:100px;}
+  .bar-fill{height:100%;}
+  .heatmap{display:grid;gap:2px;margin-top:10px;font-size:10px;}
+  .cell{padding:6px 4px;text-align:center;border-radius:3px;color:#fff;font-weight:bold;min-width:30px;cursor:pointer;}
+  .cell.none{background:#bdc3c7;color:#666;}
+  button{background:#2980b9;color:#fff;border:none;border-radius:6px;padding:10px 16px;cursor:pointer;font-size:14px;margin:4px;}
+  button:hover{background:#21618c;}
+  button.danger{background:#c0392b;}
+  .warn{background:#fef9e7;border-left:5px solid #f1c40f;padding:10px 14px;margin:10px 0;border-radius:4px;font-size:13px;}
+  .err{background:#fadbd8;border-left:5px solid #c0392b;padding:10px 14px;margin:10px 0;border-radius:4px;font-size:13px;}
+  .student-list{max-height:400px;overflow-y:auto;border:1px solid #ddd;border-radius:6px;}
+  .legend{display:flex;gap:12px;font-size:11px;margin:6px 0;align-items:center;flex-wrap:wrap;}
+  .legend-box{width:14px;height:14px;border-radius:3px;display:inline-block;margin-right:4px;vertical-align:middle;}
+  input[type=text]{padding:6px 8px;border:1px solid #bdc3c7;border-radius:4px;font-size:13px;}
+  .controls{margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  details{margin:10px 0;}
+  summary{cursor:pointer;padding:6px;background:#ecf0f1;border-radius:4px;font-weight:bold;}
+</style>
+</head>
+<body>
+<h1>📚 血液内科 学習レポート 集約解析ツール</h1>
+<div class="warn">
+  <b>教員用ツール</b>：学生が提出したHTMLレポートファイル（複数選択可）をドロップまたは選択してください。<br>
+  このツールは<b>ブラウザ内で完結</b>し、データは外部送信されません。
+</div>
+
+<div id="drop-zone" class="drop-zone">
+  <div style="font-size:48px;">📁</div>
+  <div style="font-size:16px;font-weight:bold;margin-top:8px;">レポートHTMLファイルをここにドロップ</div>
+  <div style="font-size:13px;color:#7f8c8d;margin-top:6px;">または <button id="pick-files">ファイルを選択</button>（複数選択可）</div>
+  <input type="file" id="file-input" accept=".html" multiple style="display:none">
+</div>
+
+<div id="status"></div>
+<div id="results" style="display:none;">
+  <div class="controls">
+    <button id="btn-export-csv">📥 クラス集約CSVをダウンロード</button>
+    <button id="btn-clear" class="danger">🗑️ 全データクリア</button>
+    <span style="margin-left:auto;">検索: <input type="text" id="search-box" placeholder="学籍番号/氏名"></span>
+  </div>
+  <h2>📊 クラス全体サマリー</h2>
+  <div class="kpi-row" id="class-kpi"></div>
+
+  <h2>👥 学生一覧</h2>
+  <div class="student-list">
+    <table id="student-table">
+      <thead>
+        <tr>
+          <th data-sort="id">学籍番号</th>
+          <th data-sort="name">氏名</th>
+          <th data-sort="completed">完了セクション</th>
+          <th data-sort="firstTry">一発正解率</th>
+          <th data-sort="accuracy">累積正答率</th>
+          <th data-sort="weakCount">弱点数</th>
+          <th data-sort="finalPct">確認テスト</th>
+          <th data-sort="date">提出日</th>
+          <th>署名</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h2>🔥 セクション別 クラス平均 一発正解率</h2>
+  <div class="legend">
+    <span><span class="legend-box" style="background:#27ae60;"></span>90%以上</span>
+    <span><span class="legend-box" style="background:#3498db;"></span>75-89%</span>
+    <span><span class="legend-box" style="background:#e67e22;"></span>50-74%</span>
+    <span><span class="legend-box" style="background:#c0392b;"></span>50%未満</span>
+    <span><span class="legend-box" style="background:#bdc3c7;"></span>未実施</span>
+  </div>
+  <table id="section-stats-table">
+    <thead>
+      <tr><th>#</th><th>セクション</th><th>平均一発正解率</th><th>参加人数</th><th>弱点学生数</th><th>グラフ</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <h2>🌡️ 学生×セクション ヒートマップ</h2>
+  <div style="font-size:12px;color:#666;">セクション番号を横軸、学生を縦軸に配置。赤いセル＝弱点、緑＝得意。セルにマウスオーバーで詳細。</div>
+  <div id="heatmap"></div>
+
+  <h2>⚠️ 要支援学生（一発正解率 &lt; 60%）</h2>
+  <div id="at-risk-list"></div>
+</div>
+
+<script>
+const SECTION_ORDER = null; // 後で最初のレポートから取得
+let students = [];
+let sectionNames = []; // from first report
+
+const dz = document.getElementById('drop-zone');
+const fi = document.getElementById('file-input');
+document.getElementById('pick-files').onclick = ()=>fi.click();
+fi.onchange = (e)=>handleFiles(e.target.files);
+dz.ondragover = (e)=>{ e.preventDefault(); dz.classList.add('hover'); };
+dz.ondragleave = ()=>dz.classList.remove('hover');
+dz.ondrop = (e)=>{ e.preventDefault(); dz.classList.remove('hover'); handleFiles(e.dataTransfer.files); };
+dz.onclick = ()=>fi.click();
+
+document.getElementById('btn-clear').onclick = ()=>{
+  if(confirm('全データをクリアしますか？')){ students=[]; document.getElementById('results').style.display='none'; document.getElementById('status').innerHTML=''; }
+};
+document.getElementById('search-box').oninput = (e)=>renderTable(e.target.value.toLowerCase());
+document.getElementById('btn-export-csv').onclick = exportClassCSV;
+
+async function handleFiles(files){
+  const arr = Array.from(files);
+  let ok=0, ng=0;
+  const messages = [];
+  for(const f of arr){
+    try{
+      const text = await f.text();
+      const parsed = parseReport(text, f.name);
+      if(parsed){
+        // 重複チェック（学籍番号）
+        const key = parsed.student.id || parsed.student.name || f.name;
+        const existing = students.findIndex(s=>s._key===key);
+        parsed._key = key;
+        parsed._fileName = f.name;
+        if(existing>=0){ students[existing] = parsed; messages.push(`更新: ${f.name}`); }
+        else { students.push(parsed); }
+        ok++;
+      } else { ng++; messages.push(`失敗: ${f.name}（データ抽出不可）`); }
+    }catch(e){ ng++; messages.push(`エラー: ${f.name}（${e.message}）`); }
+  }
+  document.getElementById('status').innerHTML = `<div class="warn">${ok}件取り込み${ng>0?(' / '+ng+'件失敗'):''}。合計${students.length}名分のデータ。<br><small>${messages.slice(0,10).join('<br>')}</small></div>`;
+  if(students.length>0){
+    // セクション名を最初のレポートから取得
+    if(sectionNames.length===0){
+      sectionNames = students[0].topics.map(t=>t.title);
+    }
+    document.getElementById('results').style.display='block';
+    renderAll();
+  }
+}
+
+function parseReport(htmlText, fileName){
+  const m = htmlText.match(/<script type="application\/json" id="hematology-report-data">([\s\S]*?)<\/script>/);
+  if(!m) return null;
+  try{
+    const jsonStr = m[1].replace(/\\u003c/g,'<');
+    const data = JSON.parse(jsonStr);
+    // 署名は埋め込み時に data.signature として加えていないので、埋め込みJSONには署名は含まれないがHMAC検証はオプション
+    const sigMatch = htmlText.match(/window\.__hematologySignature="([a-f0-9]+)"/);
+    data._signature = sigMatch ? sigMatch[1] : null;
+    data._verified = null; // async検証は後ほど
+    return data;
+  }catch(e){ return null; }
+}
+
+function renderAll(){
+  renderClassKpi();
+  renderTable('');
+  renderSectionStats();
+  renderHeatmap();
+  renderAtRisk();
+}
+
+function renderClassKpi(){
+  const n = students.length;
+  const avgFirstTry = avg(students.map(s=>s.summary && s.summary.firstTry!=null ? (s.answerLog.length>0 ? Math.round(s.summary.firstTry/s.answerLog.length*100) : 0) : 0));
+  const avgCompleted = avg(students.map(s=>s.summary ? s.summary.completedSections : 0));
+  const avgAccuracy = avg(students.map(s=>s.summary ? s.summary.accuracy : 0));
+  const withFinalTest = students.filter(s=>s.finalTest).length;
+  document.getElementById('class-kpi').innerHTML = `
+    <div class="kpi"><span class="kpi-label">提出人数</span><span class="kpi-value">${n}</span></div>
+    <div class="kpi"><span class="kpi-label">平均完了セクション</span><span class="kpi-value">${avgCompleted.toFixed(1)}</span></div>
+    <div class="kpi"><span class="kpi-label">平均一発正解率</span><span class="kpi-value">${avgFirstTry.toFixed(1)}%</span></div>
+    <div class="kpi"><span class="kpi-label">平均累積正答率</span><span class="kpi-value">${avgAccuracy.toFixed(1)}%</span></div>
+    <div class="kpi"><span class="kpi-label">確認テスト受験</span><span class="kpi-value">${withFinalTest}/${n}</span></div>`;
+}
+
+let currentSort = {key:'id', asc:true};
+document.querySelectorAll('#student-table th[data-sort]').forEach(th=>{
+  th.onclick = ()=>{
+    const k = th.dataset.sort;
+    if(currentSort.key===k) currentSort.asc=!currentSort.asc;
+    else { currentSort.key=k; currentSort.asc=true; }
+    renderTable(document.getElementById('search-box').value.toLowerCase());
+  };
+});
+
+function renderTable(filter){
+  const tbody = document.querySelector('#student-table tbody');
+  let arr = students.slice();
+  if(filter){
+    arr = arr.filter(s=>(s.student.id||'').toLowerCase().includes(filter)||(s.student.name||'').toLowerCase().includes(filter));
+  }
+  arr.sort((a,b)=>{
+    let av, bv;
+    switch(currentSort.key){
+      case 'id': av=a.student.id||''; bv=b.student.id||''; break;
+      case 'name': av=a.student.name||''; bv=b.student.name||''; break;
+      case 'completed': av=a.summary?a.summary.completedSections:0; bv=b.summary?b.summary.completedSections:0; break;
+      case 'firstTry': av=getFirstTryPct(a); bv=getFirstTryPct(b); break;
+      case 'accuracy': av=a.summary?a.summary.accuracy:0; bv=b.summary?b.summary.accuracy:0; break;
+      case 'weakCount': av=countWeak(a); bv=countWeak(b); break;
+      case 'finalPct': av=a.finalTest?a.finalTest.pct:-1; bv=b.finalTest?b.finalTest.pct:-1; break;
+      case 'date': av=a.generatedAt||''; bv=b.generatedAt||''; break;
+    }
+    const cmp = (av<bv)?-1:(av>bv)?1:0;
+    return currentSort.asc?cmp:-cmp;
+  });
+  tbody.innerHTML = arr.map(s=>{
+    const firstTryPct = getFirstTryPct(s);
+    const cls = firstTryPct<60?'weak':(firstTryPct>=85?'strong':'');
+    return `<tr class="${cls}">
+      <td>${esc(s.student.id||'')}</td>
+      <td>${esc(s.student.name||'')}</td>
+      <td>${s.summary?s.summary.completedSections:0}/${s.topics.length}</td>
+      <td><b>${firstTryPct}%</b><div class="bar"><div class="bar-fill" style="width:${firstTryPct}%;background:${barColor(firstTryPct)};"></div></div></td>
+      <td>${s.summary?s.summary.accuracy:0}%</td>
+      <td>${countWeak(s)}</td>
+      <td>${s.finalTest?s.finalTest.pct+'%':'—'}</td>
+      <td>${s.generatedAt?new Date(s.generatedAt).toLocaleDateString('ja-JP'):''}</td>
+      <td>${s._signature?'<span title="署名あり">🔏</span>':'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function renderSectionStats(){
+  const tb = document.querySelector('#section-stats-table tbody');
+  const stats = sectionNames.map((name,i)=>{
+    const pcts = students.map(s=>{
+      const sc = s.radarScores && s.radarScores[i];
+      return sc && sc.attemptedQ>0 ? sc.pct : null;
+    }).filter(x=>x!==null);
+    const weak = students.filter(s=>{
+      const sc = s.radarScores && s.radarScores[i];
+      return sc && sc.attemptedQ>0 && sc.pct<75;
+    }).length;
+    const avgPct = pcts.length>0 ? avg(pcts) : 0;
+    return { idx:i, name, avgPct, count: pcts.length, weak };
+  });
+  tb.innerHTML = stats.map(s=>`<tr ${s.avgPct<75?'class="weak"':(s.avgPct>=90?'class="strong"':'')}>
+    <td>${String(s.idx+1).padStart(2,'0')}</td>
+    <td>${esc(s.name)}</td>
+    <td><b>${s.avgPct.toFixed(1)}%</b></td>
+    <td>${s.count}</td>
+    <td>${s.weak}</td>
+    <td><div class="bar" style="width:200px;"><div class="bar-fill" style="width:${s.avgPct}%;background:${barColor(s.avgPct)};"></div></div></td>
+  </tr>`).join('');
+}
+
+function renderHeatmap(){
+  const hm = document.getElementById('heatmap');
+  const sortedStudents = students.slice().sort((a,b)=>getFirstTryPct(a)-getFirstTryPct(b));
+  const cols = sectionNames.length + 1; // 1 for student name
+  hm.style.gridTemplateColumns = `160px repeat(${sectionNames.length},1fr)`;
+  let html = '<div style="font-weight:bold;">学生\\セクション</div>';
+  sectionNames.forEach((n,i)=>{ html += `<div style="font-size:9px;text-align:center;padding:2px;" title="${esc(n)}">${String(i+1).padStart(2,'0')}</div>`; });
+  sortedStudents.forEach(s=>{
+    html += `<div style="font-size:11px;padding:3px 4px;border-right:1px solid #ddd;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${esc(s.student.id||'')} ${esc(s.student.name||'')}">${esc((s.student.id||'')+' '+(s.student.name||''))}</div>`;
+    sectionNames.forEach((_,i)=>{
+      const sc = s.radarScores && s.radarScores[i];
+      if(!sc || sc.attemptedQ===0){ html += `<div class="cell none" title="未実施">—</div>`; }
+      else {
+        const col = sc.pct>=90?'#27ae60':sc.pct>=75?'#3498db':sc.pct>=50?'#e67e22':'#c0392b';
+        html += `<div class="cell" style="background:${col};" title="${esc(sectionNames[i])}: ${sc.pct}%">${sc.pct}</div>`;
+      }
+    });
+  });
+  hm.innerHTML = html;
+}
+
+function renderAtRisk(){
+  const risky = students.filter(s=>getFirstTryPct(s)<60);
+  const el = document.getElementById('at-risk-list');
+  if(risky.length===0){ el.innerHTML = '<div style="color:#27ae60;">該当する学生はいません。</div>'; return; }
+  el.innerHTML = `<table><thead><tr><th>学籍番号</th><th>氏名</th><th>一発正解率</th><th>弱点セクション（上位5）</th></tr></thead><tbody>${
+    risky.map(s=>{
+      const weakTop = (s.radarScores||[]).filter(sc=>sc.attemptedQ>0 && sc.pct<75).sort((a,b)=>a.pct-b.pct).slice(0,5);
+      return `<tr class="weak"><td>${esc(s.student.id||'')}</td><td>${esc(s.student.name||'')}</td><td>${getFirstTryPct(s)}%</td><td>${weakTop.map(w=>`${esc(w.fullName||w.name)}(${w.pct}%)`).join(', ')||'—'}</td></tr>`;
+    }).join('')
+  }</tbody></table>`;
+}
+
+function exportClassCSV(){
+  const header = ['学籍番号','氏名','所属','学習モード','完了セクション','一発正解率(%)','累積正答率(%)','弱点セクション数','確認テスト正答率(%)','提出日時'].concat(sectionNames.map((n,i)=>`${String(i+1).padStart(2,'0')}_${n}(%)`));
+  const rows = [header];
+  students.forEach(s=>{
+    const row = [
+      s.student.id||'', s.student.name||'', s.student.affiliation||'',
+      s.mode||'', s.summary?s.summary.completedSections:0,
+      getFirstTryPct(s), s.summary?s.summary.accuracy:0,
+      countWeak(s), s.finalTest?s.finalTest.pct:'',
+      s.generatedAt||'',
+    ];
+    sectionNames.forEach((_,i)=>{
+      const sc = s.radarScores && s.radarScores[i];
+      row.push(sc && sc.attemptedQ>0 ? sc.pct : '');
+    });
+    rows.push(row);
+  });
+  const csv = '\ufeff' + rows.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`血液内科_クラス集約_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
+}
+
+function getFirstTryPct(s){
+  if(!s.summary || !s.answerLog || s.answerLog.length===0) return 0;
+  return Math.round(s.summary.firstTry/s.answerLog.length*100);
+}
+function countWeak(s){ return (s.radarScores||[]).filter(sc=>sc.attemptedQ>0 && sc.pct<75).length; }
+function avg(arr){ return arr.length===0?0: arr.reduce((a,b)=>a+b,0)/arr.length; }
+function barColor(pct){ return pct>=90?'#27ae60':pct>=75?'#3498db':pct>=50?'#e67e22':'#c0392b'; }
+function esc(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+</script>
+</body>
+</html>
