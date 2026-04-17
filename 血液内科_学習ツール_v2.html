@@ -3002,7 +3002,9 @@ function render(){
           </div>` : `
           <div style="margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
             <button id="show-mid-radar2" style="background:#3498db;min-height:44px;padding:10px 20px;">📊 現在の一発正解率を確認</button>
-            <button id="redo-section" style="background:#8e44ad;min-height:44px;padding:10px 20px;">🔄 このセクションを再挑戦</button>
+          </div>
+          <div class="meta" style="margin-top:12px;font-size:12px;color:#922b21;background:#fadbd8;padding:8px 10px;border-radius:4px;">
+            🔒 完了したセクションは再挑戦できません。未完了のセクションから次を選んでください。
           </div>`}
       </div>`;
     if(document.getElementById('goto-radar')){
@@ -3017,19 +3019,6 @@ function render(){
         state.showingMidRadar = true;
         render();
         window.scrollTo({top:0, behavior:'smooth'});
-      };
-    }
-    if(document.getElementById('redo-section')){
-      document.getElementById('redo-section').onclick = ()=>{
-        // 再抽選
-        const reselected = shuffle(ts.allQuestions).slice(0, Math.min(QUESTIONS_PER_SECTION, ts.allQuestions.length));
-        ts.selectedQuestions = reselected.slice();
-        ts.queue = shuffle(reselected);
-        ts.mastered = 0;
-        ts.total = reselected.length;
-        ts.completed = false;
-        initTopic();
-        render();
       };
     }
     return;
@@ -3047,13 +3036,9 @@ function render(){
       state.selected = null;
       state.answered = false;
       if(ts.queue.length===0){
-        // リセット(再挑戦)
-        const reselected = shuffle(ts.allQuestions).slice(0, Math.min(QUESTIONS_PER_SECTION, ts.allQuestions.length));
-        ts.selectedQuestions = reselected.slice();
-        ts.queue = shuffle(reselected);
-        ts.mastered = 0;
-        ts.total = reselected.length;
-        ts.completed = false;
+        // 完了セクションは再挑戦不可（履歴保護）
+        alert('このセクションは既に完了しています。再挑戦はできません。');
+        return;
       }
       state.currentQ = ts.queue[0];
       render();
@@ -3844,7 +3829,10 @@ function renderRemediationComplete(){
 const FINAL_TEST_TOTAL = 30;
 function startFinalTest(){
   if(state.finalTest && state.finalTest.completed){
-    if(!confirm('既に完了した最終確認テストがあります。再受験しますか？（既存結果は上書きされます）')) return;
+    alert('最終確認テストは既に受験済みです。再受験はできません。\n結果画面からご確認ください。');
+    state.showingFinalTestResult = true;
+    render();
+    return;
   }
   // 各セクションから使用済み問題を除外した利用可能リストを作る
   const usedByTopic = {};
@@ -4080,11 +4068,12 @@ function renderFinalTestResult(){
     </details>
     <div style="margin-top:20px;display:flex;gap:10px;flex-wrap:wrap;">
       <button id="ft-back" style="background:#7f8c8d;">◀ 完了画面に戻る</button>
-      <button id="ft-retry" style="background:#e67e22;">🔄 もう一度最終確認テストを受ける</button>
       <button onclick="document.getElementById('export-report').click()" style="background:#c0392b;">📄 HTMLレポート出力</button>
+    </div>
+    <div class="meta" style="margin-top:10px;font-size:12px;color:#922b21;background:#fadbd8;padding:8px 10px;border-radius:4px;">
+      🔒 最終確認テストは1回のみ受験可能です。この結果がHTMLレポートに記録されます。
     </div>`;
   document.getElementById('ft-back').onclick = ()=>{ state.showingFinalTestResult=false; render(); window.scrollTo({top:0,behavior:'smooth'}); };
-  document.getElementById('ft-retry').onclick = ()=>{ state.showingFinalTestResult=false; startFinalTest(); };
 }
 
 /* ===== 解答ログ表示 ===== */
@@ -4903,11 +4892,12 @@ function renderResumeDialog(saved){
         <div>進捗： <b>${escapeHtml(statusTxt)}</b></div>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
-        <button id="resume-yes" style="background:#27ae60;min-height:48px;padding:12px 22px;font-size:15px;">▶ 続きから始める</button>
-        <button id="resume-no" style="background:#e67e22;min-height:48px;padding:12px 22px;font-size:15px;">🆕 最初からやり直す</button>
+        <button id="resume-yes" style="background:#27ae60;min-height:52px;padding:14px 32px;font-size:16px;">▶ 続きから始める</button>
       </div>
-      <div class="meta" style="margin-top:14px;font-size:12px;color:#7d6608;background:#fef9e7;padding:8px 10px;border-radius:4px;line-height:1.6;">
-        ℹ️ 「最初からやり直す」を選んでも、<b>全ての解答履歴・時刻記録・最終確認テスト結果は保持</b>されます（やり直し回数・過去の点数も含めてHTMLレポートに記録されます）。
+      <div class="meta" style="margin-top:14px;font-size:12px;color:#922b21;background:#fadbd8;padding:10px 12px;border-radius:4px;line-height:1.7;border:1px solid #c0392b;">
+        🔒 <b>一度開始した学習はやり直しできません。</b><br>
+        必ず続きから再開されます。これは学習の公正性を保ち、反復による成績水増しを防ぐためです。<br>
+        途中でやめても、次回は中断した場所からそのまま再開されます。
       </div>
     </div>`;
   document.getElementById('resume-yes').onclick = ()=>{
@@ -4918,11 +4908,6 @@ function renderResumeDialog(saved){
       if(ts && ts.queue && ts.queue.length>0) state.currentQ = ts.queue[0];
     }
     render();
-  };
-  document.getElementById('resume-no').onclick = ()=>{
-    if(confirm('最初からやり直しますか？\n\n※解答履歴・時刻記録・過去の最終確認テスト結果はすべて保持されます。\n（やり直し回数も記録されます）')){
-      restartKeepingHistory(saved);
-    }
   };
   renderTopicList();
   updateProgress();
