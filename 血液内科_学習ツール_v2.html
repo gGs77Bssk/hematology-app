@@ -2645,7 +2645,7 @@ document.getElementById('btn-t365-guide').onclick = ()=>{
 };
 document.getElementById('btn-t365-config').onclick = ()=>{
   const cur = getT365UploadUrl();
-  const input = prompt('Microsoft Forms または SharePoint のアップロード先URLを入力してください（空で削除）:', cur);
+  const input = prompt('Microsoft Forms または SharePoint のアップロード先URLを入力してください。\n（空欄のままOKを押すと、保存済みURLを削除します。キャンセルで何もせずに閉じます）', cur);
   if(input===null) return; // キャンセル
   if(input && !/^https?:\/\//.test(input)){
     alert('URLは http:// または https:// で始める必要があります。');
