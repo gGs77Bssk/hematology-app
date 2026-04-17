@@ -250,6 +250,49 @@
         <button id="btn-t365-config" style="background:#d4ac0d;color:#fff;border:none;border-radius:4px;padding:8px 14px;cursor:pointer;font-size:13px;" title="教員用: 提出先URLを設定">⚙️ 提出先URL設定（教員用）</button>
       </div>
       <div id="t365-url-display" style="font-size:12px;color:#555;margin-top:6px;"></div>
+      <div id="t365-config-panel" style="display:none;background:#fff;border:2px solid #d4ac0d;border-radius:6px;padding:14px;margin-top:10px;font-size:12px;line-height:1.7;">
+        <div style="font-weight:bold;color:#7d6608;font-size:14px;margin-bottom:6px;">⚙️ 提出先URL設定ガイド（教員用）</div>
+        <div style="background:#eaf2f8;border-left:5px solid #2980b9;padding:10px 12px;border-radius:4px;margin:8px 0;">
+          <b>📝 Microsoft Forms で提出フォームを作成する手順</b>
+          <ol style="margin:6px 0 4px 20px;padding:0;">
+            <li><b>大学のMicrosoft 365にサインイン</b>し、<a href="https://forms.office.com" target="_blank" rel="noopener">forms.office.com</a> を開く</li>
+            <li>「<b>新しいフォーム</b>」をクリック</li>
+            <li>タイトル入力：例「血液内科 学習レポート提出」</li>
+            <li>「<b>新規追加</b>」→「<b>ファイルアップロード</b>」を選択
+              <ul style="margin:2px 0 2px 16px;padding:0;">
+                <li>ファイル数上限: <b>1</b> ／ ファイルサイズ上限: <b>10MB</b> 以上</li>
+                <li>「<b>必須</b>」にチェック</li>
+              </ul>
+            </li>
+            <li>必要に応じて追加の質問を作成：
+              <ul style="margin:2px 0 2px 16px;padding:0;">
+                <li>「テキスト」：学籍番号</li>
+                <li>「テキスト」：氏名</li>
+              </ul>
+            </li>
+            <li>画面右上の「<b>共有</b>」→「<b>回答を収集</b>」をクリック</li>
+            <li>共有範囲を「<b>自分の組織内のユーザーとゲスト</b>」に設定</li>
+            <li>表示される<b>フォームURL</b>をコピー（例: <code>https://forms.office.com/r/XXXXXXXXXX</code>）</li>
+            <li>下の入力欄にそのURLを貼り付けて「保存」</li>
+          </ol>
+          <div style="color:#16a085;margin-top:6px;"><b>✅ 提出されたHTMLレポートは</b> OneDrive の「Apps/Microsoft Forms/[フォーム名]/Question」 フォルダに自動保存されます。</div>
+        </div>
+        <div style="background:#fadbd8;border-left:5px solid #c0392b;padding:8px 12px;border-radius:4px;margin:8px 0;color:#922b21;">
+          <b>⚠️ 注意事項</b>
+          <ul style="margin:4px 0 4px 18px;padding:0;">
+            <li>大学のM365テナントで<b>Formsのファイルアップロード機能</b>が有効化されている必要があります。無効の場合は情報センターに相談してください。</li>
+            <li>SharePointドキュメントライブラリまたはTeams課題も提出先として設定できます（URL形式であれば何でも可）。</li>
+          </ul>
+        </div>
+        <div style="margin-top:10px;">
+          <label style="font-weight:bold;color:#7d6608;display:block;margin-bottom:4px;">提出先URL <span style="color:#c0392b;">*</span></label>
+          <input type="text" id="t365-config-input" placeholder="https://forms.office.com/r/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d4ac0d;border-radius:4px;font-size:13px;font-family:monospace;">
+          <div style="margin-top:8px;display:flex;gap:6px;">
+            <button id="t365-config-save" style="background:#27ae60;color:#fff;border:none;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;">💾 保存</button>
+            <button id="t365-config-cancel" style="background:#7f8c8d;color:#fff;border:none;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;">キャンセル</button>
+          </div>
+        </div>
+      </div>
       <div id="t365-guide" style="display:none;background:#eaf2f8;border-left:5px solid #2980b9;padding:10px 14px;margin-top:8px;border-radius:4px;font-size:12px;line-height:1.7;">
         <b>📘 T365 提出手順：</b><br>
         ① <b>HTMLレポートを保存</b>（上の「📄 HTMLレポートを保存」ボタン）<br>
@@ -2644,12 +2687,22 @@ document.getElementById('btn-t365-guide').onclick = ()=>{
   if(g) g.style.display = g.style.display==='none' ? 'block' : 'none';
 };
 document.getElementById('btn-t365-config').onclick = ()=>{
-  const cur = getT365UploadUrl();
-  const input = prompt('Microsoft Forms または SharePoint のアップロード先URLを入力してください。', cur);
-  if(input===null) return; // キャンセル
-  const trimmed = input.trim();
+  const panel = document.getElementById('t365-config-panel');
+  const input = document.getElementById('t365-config-input');
+  if(panel.style.display === 'none' || !panel.style.display){
+    input.value = getT365UploadUrl();
+    panel.style.display = 'block';
+    panel.scrollIntoView({behavior:'smooth', block:'start'});
+    input.focus();
+  } else {
+    panel.style.display = 'none';
+  }
+};
+document.getElementById('t365-config-save').onclick = ()=>{
+  const input = document.getElementById('t365-config-input');
+  const trimmed = input.value.trim();
   if(!trimmed){
-    alert('URLが入力されていません。既存の設定は変更されません。');
+    alert('URLが入力されていません。');
     return;
   }
   if(!/^https?:\/\//.test(trimmed)){
@@ -2658,7 +2711,11 @@ document.getElementById('btn-t365-config').onclick = ()=>{
   }
   setT365UploadUrl(trimmed);
   refreshT365Url();
+  document.getElementById('t365-config-panel').style.display = 'none';
   alert('提出先URLを保存しました。');
+};
+document.getElementById('t365-config-cancel').onclick = ()=>{
+  document.getElementById('t365-config-panel').style.display = 'none';
 };
 
 /* ===== 進捗更新 ===== */
