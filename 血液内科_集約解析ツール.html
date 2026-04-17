@@ -36,6 +36,18 @@
   .controls{margin:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
   details{margin:10px 0;}
   summary{cursor:pointer;padding:6px;background:#ecf0f1;border-radius:4px;font-weight:bold;}
+  /* 個別学生詳細モーダル */
+  .modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);display:none;z-index:1000;overflow-y:auto;padding:20px;}
+  .modal-overlay.show{display:block;}
+  .modal-content{background:#fff;max-width:1000px;margin:0 auto;border-radius:12px;padding:24px;box-shadow:0 10px 40px rgba(0,0,0,.3);}
+  .modal-close{float:right;background:#95a5a6;color:#fff;border:none;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;}
+  .modal-close:hover{background:#7f8c8d;}
+  #student-table tbody tr{cursor:pointer;}
+  #student-table tbody tr:hover{background:#d6eaf8 !important;}
+  .detail-section{margin:18px 0;padding-bottom:10px;border-bottom:1px solid #eee;}
+  .detail-radar{text-align:center;background:#f8f9f9;border-radius:8px;padding:12px;margin:8px 0;}
+  .kpi-mini{display:inline-block;background:#ecf0f1;padding:6px 12px;margin:3px;border-radius:6px;font-size:13px;}
+  .kpi-mini b{color:#2c3e50;font-size:16px;}
 </style>
 </head>
 <body>
@@ -103,6 +115,14 @@
 
   <h2>⚠️ 要支援学生（一発正解率 &lt; 60%）</h2>
   <div id="at-risk-list"></div>
+</div>
+
+<!-- 個別学生詳細モーダル -->
+<div id="student-modal" class="modal-overlay">
+  <div class="modal-content">
+    <button class="modal-close" id="modal-close">✕ 閉じる</button>
+    <div id="modal-body"></div>
+  </div>
 </div>
 
 <script>
@@ -285,7 +305,7 @@ function renderTable(filter){
     } else {
       sigCell = '<span title="署名なし（旧形式または手動編集）" style="color:#e67e22;">⚠️ 署名なし</span>';
     }
-    return `<tr class="${cls}" style="${rowExtraStyle}">
+    return `<tr class="${cls}" data-key="${esc(s._key)}" style="${rowExtraStyle}" title="クリックで個別詳細を表示">
       <td>${esc(s.student.id||'')}</td>
       <td>${esc(s.student.name||'')}</td>
       <td>${s.summary?s.summary.completedSections:0}/${s.topics.length}</td>
@@ -297,6 +317,232 @@ function renderTable(filter){
       <td>${sigCell}</td>
     </tr>`;
   }).join('');
+  // 行クリックで個別詳細表示
+  tbody.querySelectorAll('tr[data-key]').forEach(tr=>{
+    tr.onclick = ()=>{
+      const key = tr.dataset.key;
+      const s = students.find(x=>x._key===key);
+      if(s) showStudentDetail(s);
+    };
+  });
+}
+
+/* ===== 個別学生詳細モーダル ===== */
+function showStudentDetail(s){
+  const body = document.getElementById('modal-body');
+  const summary = s.summary || {};
+  const firstTryPct = getFirstTryPct(s);
+  const scores = s.radarScores || [];
+  const weakSections = scores.filter(sc=>sc.attemptedQ>0 && sc.pct<75).sort((a,b)=>a.pct-b.pct);
+  const strongSections = scores.filter(sc=>sc.attemptedQ>0 && sc.pct>=90).sort((a,b)=>b.pct-a.pct);
+  // 署名状態
+  let sigBadge;
+  if(s._verified===true) sigBadge = '<span style="color:#27ae60;">✅ 署名検証OK</span>';
+  else if(s._verified===false) sigBadge = '<span style="color:#c0392b;font-weight:bold;">❌ 改ざん疑い</span>';
+  else sigBadge = '<span style="color:#e67e22;">⚠️ 署名なし</span>';
+
+  // 回答ログから誤答問題抽出
+  const allEntries = (s.answerLog || []);
+  const wrongEntries = allEntries.filter(e=>e.wrongCount>0).sort((a,b)=>b.wrongCount-a.wrongCount);
+  const remEntries = s.remediationLog || [];
+
+  // 最終確認テスト
+  const ft = s.finalTest;
+  const ftBlock = ft ? `
+    <div class="detail-section">
+      <h3>🎯 最終確認テスト結果</h3>
+      <div>
+        <span class="kpi-mini">正答率: <b style="color:${ft.pct>=80?'#27ae60':ft.pct>=60?'#e67e22':'#c0392b'};">${ft.pct}%</b></span>
+        <span class="kpi-mini">正解: <b>${ft.correct}</b> / ${ft.total}</span>
+        <span class="kpi-mini">所要時間: <b>${ft.durationMin||'-'}</b>分</span>
+        <span class="kpi-mini">実施日: <b>${ft.endedAt?new Date(ft.endedAt).toLocaleDateString('ja-JP'):''}</b></span>
+      </div>
+      ${ft.sectionBreakdown ? `
+      <details style="margin-top:8px;">
+        <summary>セクション別内訳（クリックで展開）</summary>
+        <table><thead><tr><th>セクション</th><th>出題</th><th>正解</th><th>正答率</th></tr></thead>
+          <tbody>${ft.sectionBreakdown.map(b=>`<tr ${b.pct<75?'class="weak"':(b.pct===100?'class="strong"':'')}><td>${esc(b.title)}</td><td>${b.total}</td><td>${b.correct}</td><td><b>${b.pct}%</b></td></tr>`).join('')}</tbody>
+        </table>
+      </details>` : ''}
+    </div>` : `<div class="detail-section"><h3>🎯 最終確認テスト</h3><div style="color:#888;">未受験</div></div>`;
+
+  body.innerHTML = `
+    <h2 style="color:#2980b9;margin-top:0;">👤 ${esc(s.student.name||'(無名)')} <span style="font-size:14px;font-weight:normal;color:#7f8c8d;">(${esc(s.student.id||'学籍番号なし')})</span></h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0;">
+      <span class="kpi-mini">所属: ${esc(s.student.affiliation||'-')}</span>
+      <span class="kpi-mini">モード: ${s.mode==='free'?'自由選択':'順次'}</span>
+      <span class="kpi-mini">提出日: ${s.generatedAt?new Date(s.generatedAt).toLocaleString('ja-JP'):''}</span>
+      <span class="kpi-mini">${sigBadge}</span>
+    </div>
+
+    <div class="detail-section">
+      <h3>📊 サマリー</h3>
+      <span class="kpi-mini">完了セクション: <b>${summary.completedSections||0}/${s.topics.length}</b></span>
+      <span class="kpi-mini">一発正解率: <b style="color:${firstTryPct>=75?'#27ae60':firstTryPct<60?'#c0392b':'#e67e22'};">${firstTryPct}%</b></span>
+      <span class="kpi-mini">累積正答率: <b>${summary.accuracy||0}%</b></span>
+      <span class="kpi-mini">総試行回数: <b>${summary.totalAttempts||0}</b></span>
+      <span class="kpi-mini">弱点セクション: <b style="color:${weakSections.length>0?'#c0392b':'#27ae60'};">${weakSections.length}</b></span>
+      ${s.remediationComplete ? '<span class="kpi-mini" style="background:#d4efdf;">💪 弱点補強完了</span>' : ''}
+    </div>
+
+    <div class="detail-section">
+      <h3>📈 セクション別 一発正解率レーダーチャート</h3>
+      <div class="detail-radar">${buildDetailRadar(scores)}<div style="font-size:11px;color:#666;margin-top:4px;">赤破線＝75%（弱点閾値）</div></div>
+    </div>
+
+    <div class="detail-section">
+      <h3>⚠️ 弱点セクション（${weakSections.length}件）</h3>
+      ${weakSections.length===0 ? '<div style="color:#27ae60;">弱点セクションはありません。</div>' : `
+      <table><thead><tr><th>順位</th><th>セクション</th><th>一発正解率</th><th>解答数</th></tr></thead>
+        <tbody>${weakSections.map((w,i)=>`<tr class="weak"><td>${i+1}</td><td>${esc(w.fullName||w.name)}</td><td><b>${w.pct}%</b></td><td>${w.correctFirstTry}/${w.attemptedQ}</td></tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+
+    <div class="detail-section">
+      <h3>🏆 得意セクション（${strongSections.length}件）</h3>
+      ${strongSections.length===0 ? '<div style="color:#888;">90%以上の得意セクションはまだありません。</div>' : `
+      <table><thead><tr><th>順位</th><th>セクション</th><th>一発正解率</th></tr></thead>
+        <tbody>${strongSections.slice(0,10).map((w,i)=>`<tr class="strong"><td>${i+1}</td><td>${esc(w.fullName||w.name)}</td><td><b>${w.pct}%</b></td></tr>`).join('')}</tbody>
+      </table>`}
+    </div>
+
+    ${ftBlock}
+
+    <div class="detail-section">
+      <h3>❌ 誤答のあった問題（${wrongEntries.length}件）</h3>
+      ${wrongEntries.length===0 ? '<div style="color:#27ae60;">全問一発正解！素晴らしい。</div>' : `
+      <details>
+        <summary>クリックで全${wrongEntries.length}件を展開</summary>
+        <table><thead><tr><th>セクション</th><th>問題</th><th>誤答回数</th><th>種別</th><th>最終正解</th></tr></thead>
+          <tbody>${wrongEntries.slice(0,100).map(e=>`<tr class="weak"><td>${esc(e.topicTitle)}</td><td>${esc(e.name)}</td><td style="text-align:center;"><b>${e.wrongCount}</b></td><td style="text-align:center;">${e.isClinical?'症例':'基礎'}</td><td style="text-align:center;">${e.masteredAt?'⭕':'❌'}</td></tr>`).join('')}</tbody>
+        </table>
+      </details>`}
+    </div>
+
+    ${remEntries.length>0 ? `
+    <div class="detail-section">
+      <h3>💪 弱点補強問題 （${remEntries.length}件）</h3>
+      <details>
+        <summary>クリックで展開</summary>
+        <table><thead><tr><th>セクション</th><th>問題</th><th>誤答回数</th><th>一発正解</th><th>最終正解</th></tr></thead>
+          <tbody>${remEntries.slice(0,100).map(e=>`<tr><td>${esc(e.topicTitle)}</td><td>${esc(e.name)}</td><td style="text-align:center;">${e.wrongCount}</td><td style="text-align:center;">${e.firstTry?'★':'—'}</td><td style="text-align:center;">${e.masteredAt?'⭕':'❌'}</td></tr>`).join('')}</tbody>
+        </table>
+      </details>
+    </div>` : ''}
+
+    ${s.comment ? `<div class="detail-section"><h3>💬 学習者コメント</h3><div style="background:#fef9e7;padding:10px 14px;border-radius:6px;border-left:4px solid #f1c40f;">${esc(s.comment)}</div></div>` : ''}
+
+    <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;">
+      <button id="detail-export" style="background:#16a085;">📥 この学生の詳細をCSVで保存</button>
+      <button id="detail-close-bottom" style="background:#7f8c8d;">✕ 閉じる</button>
+    </div>
+  `;
+  document.getElementById('student-modal').classList.add('show');
+  const closeFn = ()=>document.getElementById('student-modal').classList.remove('show');
+  document.getElementById('detail-close-bottom').onclick = closeFn;
+  document.getElementById('detail-export').onclick = ()=>exportStudentDetailCsv(s);
+}
+
+document.getElementById('modal-close').onclick = ()=>document.getElementById('student-modal').classList.remove('show');
+document.getElementById('student-modal').onclick = (e)=>{
+  if(e.target.id==='student-modal') e.target.classList.remove('show');
+};
+document.addEventListener('keydown', (e)=>{
+  if(e.key==='Escape') document.getElementById('student-modal').classList.remove('show');
+});
+
+/* 個別学生詳細用レーダーチャート */
+function buildDetailRadar(scores){
+  if(!scores || scores.length===0) return '<div style="color:#888;">データなし</div>';
+  const cx=220, cy=220, maxR=170;
+  const n = scores.length;
+  let grid='';
+  for(let lv=1; lv<=4; lv++){
+    const r = maxR*lv/4;
+    const pts=[];
+    for(let i=0;i<n;i++){
+      const a = (Math.PI*2*i/n) - Math.PI/2;
+      pts.push(`${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`);
+    }
+    grid += `<polygon points="${pts.join(' ')}" fill="none" stroke="${lv===3?'#e74c3c':'#ddd'}" stroke-width="${lv===3?1.3:0.5}" ${lv===3?'stroke-dasharray="5,3" opacity="0.7"':''}/>`;
+  }
+  let axes='';
+  for(let i=0;i<n;i++){
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    const x2 = cx + maxR*Math.cos(a);
+    const y2 = cy + maxR*Math.sin(a);
+    axes += `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#e0e0e0" stroke-width="0.5"/>`;
+    const labelR = maxR+12;
+    const lx = cx + labelR*Math.cos(a);
+    const ly = cy + labelR*Math.sin(a);
+    const anchor = Math.abs(a+Math.PI/2)<0.1?'middle':(Math.cos(a)<-0.1?'end':'start');
+    const isWeak = scores[i].attemptedQ>0 && scores[i].pct<75;
+    axes += `<text x="${lx}" y="${ly+3}" text-anchor="${anchor}" font-size="8" fill="${isWeak?'#c0392b':'#555'}" font-weight="${isWeak?'bold':'normal'}">${esc(scores[i].name)}</text>`;
+  }
+  const dataPts = scores.map((s,i)=>{
+    const r = maxR*(s.pct||0)/100;
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    return `${cx+r*Math.cos(a)},${cy+r*Math.sin(a)}`;
+  }).join(' ');
+  let dots='';
+  scores.forEach((s,i)=>{
+    if(s.attemptedQ===0) return;
+    const r = maxR*s.pct/100;
+    const a = (Math.PI*2*i/n) - Math.PI/2;
+    const x = cx+r*Math.cos(a), y = cy+r*Math.sin(a);
+    const isWeak = s.pct<75;
+    dots += `<circle cx="${x}" cy="${y}" r="${isWeak?3.5:2.2}" fill="${isWeak?'#c0392b':'#3498db'}" stroke="#fff" stroke-width="0.8"/>`;
+  });
+  const r75 = maxR*0.75;
+  return `<svg viewBox="0 0 460 460" width="460" height="460" style="max-width:100%;height:auto;">
+    ${grid}${axes}
+    <polygon points="${dataPts}" fill="rgba(52,152,219,0.2)" stroke="#3498db" stroke-width="1.3"/>
+    ${dots}
+    <text x="${cx + r75 + 3}" y="${cy + 4}" font-size="8" fill="#c0392b" font-weight="bold">← 75%</text>
+  </svg>`;
+}
+
+/* 個別学生詳細CSV出力 */
+function exportStudentDetailCsv(s){
+  const rows = [];
+  rows.push(['項目','値']);
+  rows.push(['学籍番号', s.student.id||'']);
+  rows.push(['氏名', s.student.name||'']);
+  rows.push(['所属', s.student.affiliation||'']);
+  rows.push(['学習モード', s.mode||'']);
+  rows.push(['提出日時', s.generatedAt||'']);
+  rows.push(['署名検証', s._verified===true?'正当':s._verified===false?'改ざん疑い':'署名なし']);
+  rows.push([]);
+  rows.push(['--- サマリー ---']);
+  rows.push(['完了セクション', `${(s.summary&&s.summary.completedSections)||0}/${s.topics.length}`]);
+  rows.push(['一発正解率(%)', getFirstTryPct(s)]);
+  rows.push(['累積正答率(%)', (s.summary&&s.summary.accuracy)||0]);
+  rows.push(['総試行回数', (s.summary&&s.summary.totalAttempts)||0]);
+  if(s.finalTest){
+    rows.push([]);
+    rows.push(['--- 最終確認テスト ---']);
+    rows.push(['正答率(%)', s.finalTest.pct]);
+    rows.push(['正解数', `${s.finalTest.correct}/${s.finalTest.total}`]);
+    rows.push(['所要時間(分)', s.finalTest.durationMin||'']);
+  }
+  rows.push([]);
+  rows.push(['--- セクション別一発正解率 ---']);
+  rows.push(['#','セクション','一発正解率(%)','解答数','一発正解数']);
+  (s.radarScores||[]).forEach((sc,i)=>{
+    rows.push([i+1, sc.fullName||sc.name, sc.attemptedQ>0?sc.pct:'', sc.attemptedQ, sc.correctFirstTry]);
+  });
+  rows.push([]);
+  rows.push(['--- 誤答のあった問題 ---']);
+  rows.push(['セクション','問題','誤答回数','種別','最終正解']);
+  (s.answerLog||[]).filter(e=>e.wrongCount>0).forEach(e=>{
+    rows.push([e.topicTitle, e.name, e.wrongCount, e.isClinical?'症例':'基礎', e.masteredAt?'〇':'×']);
+  });
+  const csv = '\ufeff' + rows.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; a.download=`詳細_${s.student.id||s.student.name||'unknown'}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click(); URL.revokeObjectURL(url);
 }
 
 function renderSectionStats(){
@@ -331,7 +577,7 @@ function renderHeatmap(){
   let html = '<div style="font-weight:bold;">学生\\セクション</div>';
   sectionNames.forEach((n,i)=>{ html += `<div style="font-size:9px;text-align:center;padding:2px;" title="${esc(n)}">${String(i+1).padStart(2,'0')}</div>`; });
   sortedStudents.forEach(s=>{
-    html += `<div style="font-size:11px;padding:3px 4px;border-right:1px solid #ddd;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;" title="${esc(s.student.id||'')} ${esc(s.student.name||'')}">${esc((s.student.id||'')+' '+(s.student.name||''))}</div>`;
+    html += `<div data-student-key="${esc(s._key)}" style="font-size:11px;padding:3px 4px;border-right:1px solid #ddd;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;" title="クリックで詳細: ${esc(s.student.id||'')} ${esc(s.student.name||'')}">${esc((s.student.id||'')+' '+(s.student.name||''))}</div>`;
     sectionNames.forEach((_,i)=>{
       const sc = s.radarScores && s.radarScores[i];
       if(!sc || sc.attemptedQ===0){ html += `<div class="cell none" title="未実施">—</div>`; }
@@ -342,6 +588,12 @@ function renderHeatmap(){
     });
   });
   hm.innerHTML = html;
+  hm.querySelectorAll('[data-student-key]').forEach(el=>{
+    el.onclick = ()=>{
+      const s = students.find(x=>x._key===el.dataset.studentKey);
+      if(s) showStudentDetail(s);
+    };
+  });
 }
 
 function renderAtRisk(){
@@ -351,9 +603,15 @@ function renderAtRisk(){
   el.innerHTML = `<table><thead><tr><th>学籍番号</th><th>氏名</th><th>一発正解率</th><th>弱点セクション（上位5）</th></tr></thead><tbody>${
     risky.map(s=>{
       const weakTop = (s.radarScores||[]).filter(sc=>sc.attemptedQ>0 && sc.pct<75).sort((a,b)=>a.pct-b.pct).slice(0,5);
-      return `<tr class="weak"><td>${esc(s.student.id||'')}</td><td>${esc(s.student.name||'')}</td><td>${getFirstTryPct(s)}%</td><td>${weakTop.map(w=>`${esc(w.fullName||w.name)}(${w.pct}%)`).join(', ')||'—'}</td></tr>`;
+      return `<tr class="weak" data-key="${esc(s._key)}" style="cursor:pointer;" title="クリックで詳細"><td>${esc(s.student.id||'')}</td><td>${esc(s.student.name||'')}</td><td>${getFirstTryPct(s)}%</td><td>${weakTop.map(w=>`${esc(w.fullName||w.name)}(${w.pct}%)`).join(', ')||'—'}</td></tr>`;
     }).join('')
   }</tbody></table>`;
+  el.querySelectorAll('tr[data-key]').forEach(tr=>{
+    tr.onclick = ()=>{
+      const s = students.find(x=>x._key===tr.dataset.key);
+      if(s) showStudentDetail(s);
+    };
+  });
 }
 
 function exportClassCSV(){
