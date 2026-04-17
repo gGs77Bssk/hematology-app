@@ -213,7 +213,6 @@
     <button id="show-log" style="background:#8e44ad">📊 解答ログを見る</button>
     <button id="export-report" style="background:#c0392b">📄 HTMLレポートを保存（提出用）</button>
     <button id="reset-progress" style="background:#95a5a6" title="進捗を削除して最初からやり直す">🗑️ 進捗リセット</button>
-    <button id="export-log" style="background:#bdc3c7;color:#555;font-size:12px;padding:6px 10px;" title="Excel等で個別分析したい場合の補助用（通常不要）">💾 CSV(補助)</button>
   </div>
   <div id="log-panel-container"></div>
 
@@ -2605,7 +2604,7 @@ document.getElementById('show-log').onclick = ()=>{
   state.showingLog = !state.showingLog;
   renderLogPanel();
 };
-document.getElementById('export-log').onclick = ()=> exportLogCSV().catch(e=>alert('CSV出力に失敗しました: '+e.message));
+(()=>{const _csvBtn=document.getElementById('export-log'); if(_csvBtn) _csvBtn.onclick = ()=> exportLogCSV().catch(e=>alert('CSV出力に失敗しました: '+e.message));})();
 document.getElementById('export-report').onclick = ()=> exportHtmlReport().catch(e=>alert('レポート出力に失敗しました: '+e.message));
 (()=>{const _sendBtn=document.getElementById('send-log'); if(_sendBtn) _sendBtn.onclick = ()=> sendLogToSupervisor().catch(e=>alert('送信準備に失敗しました: '+e.message));})();
 document.getElementById('reset-progress').onclick = ()=>{
