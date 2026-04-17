@@ -106,6 +106,16 @@
 </div>
 
 <script>
+/* 学習ツールと同一の HMAC 秘密鍵（変更する場合は両ツールで一致させること） */
+const HMAC_SECRET_KEY = 'BloodHemeKoku6-2024-SignatureKey-CHANGE-ME-FOR-PRODUCTION';
+
+async function hmacSha256Hex(key, msg){
+  const enc = new TextEncoder();
+  const k = await crypto.subtle.importKey('raw', enc.encode(key), {name:'HMAC', hash:'SHA-256'}, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', k, enc.encode(msg));
+  return Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
 const SECTION_ORDER = null; // 後で最初のレポートから取得
 let students = [];
 let sectionNames = []; // from first report
@@ -127,13 +137,26 @@ document.getElementById('btn-export-csv').onclick = exportClassCSV;
 
 async function handleFiles(files){
   const arr = Array.from(files);
-  let ok=0, ng=0;
+  let ok=0, ng=0, tampered=0, noSig=0;
   const messages = [];
   for(const f of arr){
     try{
       const text = await f.text();
       const parsed = parseReport(text, f.name);
       if(parsed){
+        // HMAC 署名検証（非同期）
+        if(parsed._signature && parsed._rawJson){
+          try{
+            const computed = await hmacSha256Hex(HMAC_SECRET_KEY, parsed._rawJson);
+            parsed._verified = (computed === parsed._signature);
+          }catch(e){
+            parsed._verified = null;
+          }
+        } else {
+          parsed._verified = null; // 署名なし
+        }
+        if(parsed._verified === false) tampered++;
+        else if(parsed._verified === null) noSig++;
         // 重複チェック（学籍番号）
         const key = parsed.student.id || parsed.student.name || f.name;
         const existing = students.findIndex(s=>s._key===key);
@@ -142,10 +165,24 @@ async function handleFiles(files){
         if(existing>=0){ students[existing] = parsed; messages.push(`更新: ${f.name}`); }
         else { students.push(parsed); }
         ok++;
+        if(parsed._verified === false){
+          messages.push(`⚠️ 改ざん疑い: ${f.name}（署名不一致）`);
+        }
       } else { ng++; messages.push(`失敗: ${f.name}（データ抽出不可）`); }
     }catch(e){ ng++; messages.push(`エラー: ${f.name}（${e.message}）`); }
   }
-  document.getElementById('status').innerHTML = `<div class="warn">${ok}件取り込み${ng>0?(' / '+ng+'件失敗'):''}。合計${students.length}名分のデータ。<br><small>${messages.slice(0,10).join('<br>')}</small></div>`;
+  const statusEl = document.getElementById('status');
+  let statusHtml = `<div class="warn">${ok}件取り込み${ng>0?(' / '+ng+'件失敗'):''}。合計${students.length}名分のデータ。</div>`;
+  if(tampered>0){
+    statusHtml += `<div class="err"><b>🚨 ${tampered}件のHMAC署名不一致を検出しました。</b>該当レポートは改ざんされている可能性があります。学生一覧の署名列で確認してください。</div>`;
+  }
+  if(noSig>0){
+    statusHtml += `<div class="warn" style="background:#fdebd0;border-color:#e67e22;">⚠️ ${noSig}件のレポートに署名がありません（古い形式または手動編集の可能性）。</div>`;
+  }
+  if(messages.length>0){
+    statusHtml += `<div class="warn" style="font-size:11px;"><small>${messages.slice(0,15).join('<br>')}</small></div>`;
+  }
+  statusEl.innerHTML = statusHtml;
   if(students.length>0){
     // セクション名を最初のレポートから取得
     if(sectionNames.length===0){
@@ -160,12 +197,14 @@ function parseReport(htmlText, fileName){
   const m = htmlText.match(/<script type="application\/json" id="hematology-report-data">([\s\S]*?)<\/script>/);
   if(!m) return null;
   try{
-    const jsonStr = m[1].replace(/\\u003c/g,'<');
-    const data = JSON.parse(jsonStr);
-    // 署名は埋め込み時に data.signature として加えていないので、埋め込みJSONには署名は含まれないがHMAC検証はオプション
+    const rawJson = m[1].replace(/\\u003c/g,'<');
+    const data = JSON.parse(rawJson);
+    // HTMLレポート生成時: json = JSON.stringify(data) の後に data.signature が付加されるので、
+    // 埋め込みJSONには signature は含まれない → このまま再ハッシュで検証可能
     const sigMatch = htmlText.match(/window\.__hematologySignature="([a-f0-9]+)"/);
     data._signature = sigMatch ? sigMatch[1] : null;
-    data._verified = null; // async検証は後ほど
+    data._rawJson = rawJson; // 検証に必要
+    data._verified = null;   // 後で handleFiles で設定
     return data;
   }catch(e){ return null; }
 }
@@ -184,12 +223,20 @@ function renderClassKpi(){
   const avgCompleted = avg(students.map(s=>s.summary ? s.summary.completedSections : 0));
   const avgAccuracy = avg(students.map(s=>s.summary ? s.summary.accuracy : 0));
   const withFinalTest = students.filter(s=>s.finalTest).length;
+  const verifiedOk = students.filter(s=>s._verified===true).length;
+  const verifiedNg = students.filter(s=>s._verified===false).length;
+  const noSig = students.filter(s=>!s._signature).length;
+  const integrityColor = verifiedNg>0?'#c0392b':(noSig>0?'#e67e22':'#27ae60');
+  const integrityText = verifiedNg>0 ? `⚠️ ${verifiedNg}件改ざん` :
+                        noSig>0 ? `署名なし ${noSig}件` :
+                        `✅ 全て正当`;
   document.getElementById('class-kpi').innerHTML = `
     <div class="kpi"><span class="kpi-label">提出人数</span><span class="kpi-value">${n}</span></div>
     <div class="kpi"><span class="kpi-label">平均完了セクション</span><span class="kpi-value">${avgCompleted.toFixed(1)}</span></div>
     <div class="kpi"><span class="kpi-label">平均一発正解率</span><span class="kpi-value">${avgFirstTry.toFixed(1)}%</span></div>
     <div class="kpi"><span class="kpi-label">平均累積正答率</span><span class="kpi-value">${avgAccuracy.toFixed(1)}%</span></div>
-    <div class="kpi"><span class="kpi-label">確認テスト受験</span><span class="kpi-value">${withFinalTest}/${n}</span></div>`;
+    <div class="kpi"><span class="kpi-label">確認テスト受験</span><span class="kpi-value">${withFinalTest}/${n}</span></div>
+    <div class="kpi"><span class="kpi-label">署名検証</span><span class="kpi-value" style="color:${integrityColor};font-size:16px;">${integrityText}</span><span style="font-size:11px;color:#7f8c8d;">${verifiedOk}/${n} OK</span></div>`;
 }
 
 let currentSort = {key:'id', asc:true};
@@ -225,8 +272,20 @@ function renderTable(filter){
   });
   tbody.innerHTML = arr.map(s=>{
     const firstTryPct = getFirstTryPct(s);
-    const cls = firstTryPct<60?'weak':(firstTryPct>=85?'strong':'');
-    return `<tr class="${cls}">
+    let cls = firstTryPct<60?'weak':(firstTryPct>=85?'strong':'');
+    let sigCell, rowExtraStyle='';
+    if(s._verified === true){
+      sigCell = '<span title="HMAC-SHA256 署名検証OK（改ざんなし）" style="color:#27ae60;">✅ 正当</span>';
+    } else if(s._verified === false){
+      sigCell = '<span title="署名が不一致。改ざんの疑いあり" style="color:#c0392b;font-weight:bold;">❌ 改ざん疑い</span>';
+      rowExtraStyle = 'background:#fadbd8 !important;';
+      cls = 'weak';
+    } else if(s._signature){
+      sigCell = '<span title="署名あり（検証未実施）" style="color:#7f8c8d;">🔏 未検証</span>';
+    } else {
+      sigCell = '<span title="署名なし（旧形式または手動編集）" style="color:#e67e22;">⚠️ 署名なし</span>';
+    }
+    return `<tr class="${cls}" style="${rowExtraStyle}">
       <td>${esc(s.student.id||'')}</td>
       <td>${esc(s.student.name||'')}</td>
       <td>${s.summary?s.summary.completedSections:0}/${s.topics.length}</td>
@@ -235,7 +294,7 @@ function renderTable(filter){
       <td>${countWeak(s)}</td>
       <td>${s.finalTest?s.finalTest.pct+'%':'—'}</td>
       <td>${s.generatedAt?new Date(s.generatedAt).toLocaleDateString('ja-JP'):''}</td>
-      <td>${s._signature?'<span title="署名あり">🔏</span>':'—'}</td>
+      <td>${sigCell}</td>
     </tr>`;
   }).join('');
 }
