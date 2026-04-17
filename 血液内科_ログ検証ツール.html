@@ -177,7 +177,7 @@ async function verifyCSV(text, filename){
   if(radarScores.length > 0){
     radarHtml = '<tr><th colspan="2" style="background:#eaf2f8;text-align:center;font-size:13px;">📊 分野別 一発正解率</th></tr>';
     radarScores.forEach(sc=>{
-      const color = sc.pct >= 70 ? '#27ae60' : sc.pct >= 40 ? '#f39c12' : '#c0392b';
+      const color = sc.pct >= 75 ? '#27ae60' : sc.pct >= 40 ? '#f39c12' : '#c0392b';
       radarHtml += `<tr><th style="font-size:12px">${escapeHtml(sc.name)}</th><td>
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="flex:1;background:#ecf0f1;border-radius:4px;height:16px;overflow:hidden;">

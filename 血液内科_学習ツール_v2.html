@@ -2712,7 +2712,7 @@ function renderMidRadarScreen(){
   main.innerHTML = `
     <div class="radar-container">
       <h2 style="color:#2c3e50;">📊 セクション別 一発正解率（途中経過）</h2>
-      <div class="meta">全体進捗: <b>${completedCount} / ${TOPICS.length}</b> セクション完了<br>赤破線＝70%（弱点閾値）/ 赤番号・赤丸＝弱点セクション</div>
+      <div class="meta">全体進捗: <b>${completedCount} / ${TOPICS.length}</b> セクション完了<br>赤破線＝75%（弱点閾値）/ 赤番号・赤丸＝弱点セクション</div>
       ${svgChart}
       ${buildScoreTable(scores)}
       <div style="margin-top:16px;">
@@ -2789,14 +2789,14 @@ function renderRadarChart(scores, containerId){
       gridLines += `<text x="${cx+r*Math.cos(labelAngle)+3}" y="${cy+r*Math.sin(labelAngle)-2}" font-size="8" fill="#bbb">${level*20}%</text>`;
     }
   }
-  // 70%ライン（弱点閾値）を赤破線で強調
-  const r70 = maxR * 0.7;
+  // 75%ライン（弱点閾値）を赤破線で強調
+  const r70 = maxR * 0.75;
   const pts70 = [];
   for(let i=0;i<n;i++){
     const angle = (Math.PI*2*i/n) - Math.PI/2;
     pts70.push(`${cx + r70*Math.cos(angle)},${cy + r70*Math.sin(angle)}`);
   }
-  gridLines += `<polygon points="${pts70.join(' ')}" fill="none" stroke="#e74c3c" stroke-width="1" stroke-dasharray="4,3" opacity="0.5"/>`;
+  gridLines += `<polygon points="${pts70.join(' ')}" fill="none" stroke="#e74c3c" stroke-width="1.5" stroke-dasharray="6,3" opacity="0.7"/>`;
 
   // Axes & labels
   let axes = '';
@@ -2811,7 +2811,7 @@ function renderRadarChart(scores, containerId){
     let ly = cy + labelR*Math.sin(angle);
     const anchor = Math.abs(angle + Math.PI/2) < 0.1 ? 'middle' :
                    (Math.cos(angle) < -0.1 ? 'end' : 'start');
-    const isWeak = scores[i].attemptedQ > 0 && scores[i].pct < 70;
+    const isWeak = scores[i].attemptedQ > 0 && scores[i].pct < 75;
     const labelColor = isWeak ? '#c0392b' : '#555';
     const labelWeight = isWeak ? 'bold' : 'normal';
     axes += `<text x="${lx}" y="${ly+3}" text-anchor="${anchor}" font-size="9" fill="${labelColor}" font-weight="${labelWeight}">${escapeHtml(scores[i].name)}</text>`;
@@ -2831,7 +2831,7 @@ function renderRadarChart(scores, containerId){
     const angle = (Math.PI*2*i/n) - Math.PI/2;
     const x = cx + r*Math.cos(angle);
     const y = cy + r*Math.sin(angle);
-    const isWeak = s.attemptedQ > 0 && s.pct < 70;
+    const isWeak = s.attemptedQ > 0 && s.pct < 75;
     const dotColor = isWeak ? '#c0392b' : '#3498db';
     const dotR = isWeak ? 4 : 2.5;
     dots += `<circle cx="${x}" cy="${y}" r="${dotR}" fill="${dotColor}" stroke="#fff" stroke-width="1"/>`;
@@ -2843,15 +2843,16 @@ function renderRadarChart(scores, containerId){
     <polygon points="${dataPts}" fill="rgba(52,152,219,0.15)" stroke="#3498db" stroke-width="1.5"/>
     ${dots}
     <text x="${cx}" y="18" text-anchor="middle" font-size="9" fill="#888">100%</text>
-    <text x="${cx+8}" y="${cy - r70 + 12}" text-anchor="start" font-size="8" fill="#c0392b" opacity="0.7">← 70%（弱点閾値）</text>
+    <text x="${cx + r70 + 3}" y="${cy + 4}" text-anchor="start" font-size="9" fill="#c0392b" font-weight="bold">← 75%</text>
+    <text x="${cx + r70 + 6}" y="${cy + 16}" text-anchor="start" font-size="8" fill="#c0392b" opacity="0.8">（弱点閾値）</text>
   </svg>`;
 }
 
 function buildScoreTable(scores){
   let rows = '';
   scores.forEach(sc=>{
-    const isWeak = sc.attemptedQ > 0 && sc.pct < 70;
-    const barColor = sc.pct >= 70 ? '#27ae60' : sc.pct >= 40 ? '#f39c12' : '#e74c3c';
+    const isWeak = sc.attemptedQ > 0 && sc.pct < 75;
+    const barColor = sc.pct >= 75 ? '#27ae60' : sc.pct >= 40 ? '#f39c12' : '#e74c3c';
     const rowBg = isWeak ? 'background:#fdf2f2;' : '';
     const numStyle = isWeak ? 'color:#c0392b;font-weight:bold;' : 'color:#555;';
     const nameStyle = isWeak ? 'color:#c0392b;font-weight:bold;' : '';
@@ -2880,8 +2881,8 @@ function renderRadarScreen(){
   const info = getStudentInfo();
   const nameLine = info.name ? `<div style="font-size:20px;color:#b9770e;margin-bottom:6px">${escapeHtml(info.name)} さん</div>` : '';
 
-  // Identify weak categories (< 70%)
-  const weakCats = scores.filter(sc => sc.pct < 70 && sc.totalQ > 0);
+  // Identify weak categories (< 75%)
+  const weakCats = scores.filter(sc => sc.pct < 75 && sc.totalQ > 0);
 
   let weakSection = '';
   if(weakCats.length > 0 && !state.remediationStarted && !state.remediationComplete){
@@ -2892,7 +2893,7 @@ function renderRadarScreen(){
     weakSection = `
       <div class="remediation-intro" style="margin-top:16px">
         <h2>📋 弱点分野が見つかりました</h2>
-        <div style="font-size:14px;color:#7d6608;margin-bottom:8px">以下のカテゴリが70%未満です。追加問題で補強しましょう！</div>
+        <div style="font-size:14px;color:#7d6608;margin-bottom:8px">以下のセクションが75%未満です。追加問題で補強しましょう！</div>
         <div class="weak-list">${weakItems}</div>
         <button id="start-remediation" style="background:#e67e22;margin-top:12px">弱点補強を開始する 💪</button>
       </div>`;
@@ -2933,7 +2934,7 @@ function renderRadarScreen(){
   main.innerHTML = `
     <div class="radar-container">
       <div class="radar-title">📊 セクション別 一発正解率レーダーチャート</div>
-      <div class="meta" style="margin-bottom:8px;">赤破線＝70%（弱点閾値）/ 赤番号・赤丸＝弱点セクション</div>
+      <div class="meta" style="margin-bottom:8px;">赤破線＝75%（弱点閾値）/ 赤番号・赤丸＝弱点セクション</div>
       ${renderRadarChart(scores)}
       ${buildScoreTable(scores)}
     </div>
