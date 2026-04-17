@@ -112,6 +112,13 @@
 
   <h2>⚠️ 要支援学生（一発正解率 &lt; 75%）</h2>
   <div id="at-risk-list"></div>
+
+  <h2>🕵️ 不自然パターン検出（改ざん/不正疑い）</h2>
+  <div class="warn" style="font-size:12px;">
+    解答時刻・解答時間の記録を分析し、<b>不自然に早い解答</b>や<b>時刻の偏り</b>を検出します。<br>
+    ※ 本機能は<b>疑いの指摘</b>であり、確定的な不正判定ではありません。総合的に判断してください。
+  </div>
+  <div id="suspicious-list"></div>
 </div>
 
 <!-- 個別学生詳細モーダル -->
@@ -227,10 +234,140 @@ function parseReport(htmlText, fileName){
 }
 
 function renderAll(){
+  // 各学生の不自然パターンを事前計算
+  students.forEach(s=>{ s._suspiciousScore = analyzeSuspicious(s); });
   renderClassKpi();
   renderTable('');
   renderSectionStats();
   renderAtRisk();
+  renderSuspicious();
+}
+
+/* ===== 不自然パターン検出 ===== */
+function analyzeSuspicious(s){
+  const reasons = [];
+  let score = 0; // 0〜100: 高いほど怪しい
+  const hist = s.attemptHistory || [];
+  if(hist.length < 5){
+    return { score: 0, reasons: ['データ不足（試行数<5）'], stats: {} };
+  }
+  // 時刻をパースして並べる
+  const times = hist.map(h=>new Date(h.time).getTime()).filter(t=>!isNaN(t)).sort((a,b)=>a-b);
+  if(times.length < 5) return { score:0, reasons:['時刻データ不足'], stats:{} };
+
+  const totalDurationSec = (times[times.length-1] - times[0]) / 1000;
+  const avgIntervalSec = totalDurationSec / (times.length-1);
+
+  // 1. 全解答が極端に短時間(総時間<10分で30問以上)
+  if(times.length >= 30 && totalDurationSec < 10*60){
+    reasons.push(`⚠️ 全${times.length}解答が${Math.round(totalDurationSec/60)}分で完了（異常に早い）`);
+    score += 40;
+  } else if(times.length >= 50 && totalDurationSec < 30*60){
+    reasons.push(`⚠️ ${times.length}解答を${Math.round(totalDurationSec/60)}分で完了（早すぎ）`);
+    score += 25;
+  }
+
+  // 2. 平均解答間隔が極端に短い(1問1秒未満)
+  if(avgIntervalSec < 1 && times.length >= 20){
+    reasons.push(`⚠️ 平均解答間隔 ${avgIntervalSec.toFixed(2)}秒/問（短すぎ）`);
+    score += 30;
+  } else if(avgIntervalSec < 3 && times.length >= 20){
+    reasons.push(`⚠️ 平均解答間隔 ${avgIntervalSec.toFixed(1)}秒/問（疑わしい）`);
+    score += 15;
+  }
+
+  // 3. 同じ秒に複数解答(バースト)を検出
+  const bursts = {};
+  hist.forEach(h=>{
+    const k = (h.time||'').slice(0,19); // 秒単位
+    bursts[k] = (bursts[k]||0)+1;
+  });
+  const maxBurst = Math.max(...Object.values(bursts));
+  if(maxBurst >= 5){
+    reasons.push(`⚠️ 同一秒に ${maxBurst} 問解答（手動では不可能）`);
+    score += 40;
+  } else if(maxBurst >= 3){
+    reasons.push(`⚠️ 同一秒に ${maxBurst} 問解答（疑わしい）`);
+    score += 15;
+  }
+
+  // 4. 連続解答時間(0秒間隔)の多発
+  let zeroIntervals = 0;
+  for(let i=1;i<times.length;i++){
+    if(times[i]-times[i-1] < 500) zeroIntervals++; // 0.5秒未満
+  }
+  const zeroRatio = zeroIntervals / (times.length-1);
+  if(zeroRatio > 0.5){
+    reasons.push(`⚠️ 解答の${Math.round(zeroRatio*100)}%が0.5秒未満間隔（大量同時実行）`);
+    score += 30;
+  } else if(zeroRatio > 0.3){
+    reasons.push(`△ 解答の${Math.round(zeroRatio*100)}%が0.5秒未満間隔`);
+    score += 10;
+  }
+
+  // 5. 最終確認テストが超高速
+  if(s.finalTest && s.finalTest.completed){
+    if(s.finalTest.durationMin !== undefined && s.finalTest.total >= 20 && s.finalTest.durationMin < 3){
+      reasons.push(`⚠️ 最終確認テスト ${s.finalTest.total}問を ${s.finalTest.durationMin}分で完了`);
+      score += 20;
+    }
+  }
+
+  // 6. 全問一発正解かつ解答時間が短い(疑惑増幅)
+  const firstTryPct = (s.answerLog||[]).length>0
+    ? Math.round((s.summary.firstTry||0) / s.answerLog.length * 100) : 0;
+  if(firstTryPct >= 95 && avgIntervalSec < 10){
+    reasons.push(`⚠️ 一発正解率${firstTryPct}%かつ平均${avgIntervalSec.toFixed(1)}秒/問（疑わしい組合せ）`);
+    score += 15;
+  }
+
+  score = Math.min(100, score);
+  return {
+    score,
+    reasons,
+    stats: {
+      totalDurationMin: Math.round(totalDurationSec/60*10)/10,
+      avgIntervalSec: Math.round(avgIntervalSec*10)/10,
+      answerCount: times.length,
+      maxBurst,
+      zeroRatio: Math.round(zeroRatio*100),
+      firstTryPct,
+    }
+  };
+}
+
+function renderSuspicious(){
+  const el = document.getElementById('suspicious-list');
+  const suspects = students.filter(s=> (s._suspiciousScore && s._suspiciousScore.score >= 30))
+                          .sort((a,b)=> b._suspiciousScore.score - a._suspiciousScore.score);
+  if(suspects.length===0){
+    el.innerHTML = '<div style="color:#27ae60;padding:10px;background:#eafaf1;border-radius:6px;">✅ 不自然パターンを検出した学生はいません。</div>';
+    return;
+  }
+  el.innerHTML = `<table>
+    <thead><tr><th>疑惑スコア</th><th>学籍番号</th><th>氏名</th><th>総学習時間(分)</th><th>平均間隔(秒)</th><th>同一秒最大解答</th><th>検出内容</th></tr></thead>
+    <tbody>
+      ${suspects.map(s=>{
+        const sus = s._suspiciousScore;
+        const scoreColor = sus.score>=70?'#c0392b':sus.score>=50?'#e67e22':'#f39c12';
+        return `<tr data-key="${esc(s._key)}" style="cursor:pointer;" title="クリックで詳細を表示">
+          <td><b style="color:${scoreColor};font-size:16px;">${sus.score}</b></td>
+          <td>${esc(s.student.id||'')}</td>
+          <td style="color:#2980b9;text-decoration:underline;">${esc(s.student.name||'')}</td>
+          <td>${sus.stats.totalDurationMin}</td>
+          <td>${sus.stats.avgIntervalSec}</td>
+          <td>${sus.stats.maxBurst}</td>
+          <td style="font-size:11px;">${sus.reasons.map(r=>esc(r)).join('<br>')}</td>
+        </tr>`;
+      }).join('')}
+    </tbody>
+  </table>`;
+  el.querySelectorAll('tr[data-key]').forEach(tr=>{
+    tr.onclick = ()=>{
+      const s = students.find(x=>x._key===tr.dataset.key);
+      if(s) showStudentDetail(s);
+    };
+  });
 }
 
 function renderClassKpi(){
@@ -421,6 +558,24 @@ function showStudentDetail(s){
           <tbody>${remEntries.slice(0,100).map(e=>`<tr><td>${esc(e.topicTitle)}</td><td>${esc(e.name)}</td><td style="text-align:center;">${e.wrongCount}</td><td style="text-align:center;">${e.firstTry?'★':'—'}</td><td style="text-align:center;">${e.masteredAt?'⭕':'❌'}</td></tr>`).join('')}</tbody>
         </table>
       </details>
+    </div>` : ''}
+
+    ${s._suspiciousScore && s._suspiciousScore.score > 0 ? `
+    <div class="detail-section">
+      <h3>🕵️ 解答パターン分析</h3>
+      <div style="background:${s._suspiciousScore.score>=30?'#fadbd8':'#eafaf1'};padding:10px 14px;border-radius:6px;border-left:4px solid ${s._suspiciousScore.score>=30?'#c0392b':'#27ae60'};">
+        <b>疑惑スコア: <span style="font-size:20px;">${s._suspiciousScore.score}</span> / 100</b>
+        <div style="margin-top:6px;font-size:12px;">
+          ${s._suspiciousScore.stats.totalDurationMin!=null?`総学習時間: <b>${s._suspiciousScore.stats.totalDurationMin}分</b> ／ `:''}
+          ${s._suspiciousScore.stats.avgIntervalSec!=null?`平均解答間隔: <b>${s._suspiciousScore.stats.avgIntervalSec}秒/問</b> ／ `:''}
+          ${s._suspiciousScore.stats.maxBurst!=null?`同一秒最大解答: <b>${s._suspiciousScore.stats.maxBurst}問</b> ／ `:''}
+          ${s._suspiciousScore.stats.zeroRatio!=null?`0.5秒未満間隔率: <b>${s._suspiciousScore.stats.zeroRatio}%</b>`:''}
+        </div>
+        ${s._suspiciousScore.reasons.length>0?`<ul style="margin:6px 0 0 16px;padding:0;font-size:12px;">
+          ${s._suspiciousScore.reasons.map(r=>`<li>${esc(r)}</li>`).join('')}
+        </ul>`:''}
+        ${s._suspiciousScore.score>=30?'<div style="margin-top:6px;font-size:11px;color:#922b21;">※ 自動検出のため最終判定は総合的に行ってください。</div>':''}
+      </div>
     </div>` : ''}
 
     ${s.comment ? `<div class="detail-section"><h3>💬 学習者コメント</h3><div style="background:#fef9e7;padding:10px 14px;border-radius:6px;border-left:4px solid #f1c40f;">${esc(s.comment)}</div></div>` : ''}
