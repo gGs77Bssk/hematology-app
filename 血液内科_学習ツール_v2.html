@@ -3073,8 +3073,7 @@ function render(){
           '◆ 再挑戦の記録は「1回目とは別の履歴」として保存されます。\n' +
           '◆ HTMLレポートには第1回目の点数＋再挑戦の点数（第' + nextAttemptNo + '回目）が\n' +
           '  両方記録され、教員側の集約解析ツールでも確認できます。\n' +
-          '◆ 再挑戦は学習のため何度でも可能ですが、成績評価は主に1回目の\n' +
-          '  記録を基準にされる場合があります。\n\n' +
+          '◆ 再挑戦は学習のため何度でも可能です。\n\n' +
           '◎ 記憶の定着を確認する目的として活用してください。';
         if(!confirm(msg)) return;
         // 1回目の記録をアーカイブ
@@ -5001,9 +5000,7 @@ function renderResumeDialog(saved){
         <button id="resume-yes" style="background:#27ae60;min-height:52px;padding:14px 32px;font-size:16px;">▶ 続きから始める</button>
       </div>
       <div class="meta" style="margin-top:14px;font-size:12px;color:#922b21;background:#fadbd8;padding:10px 12px;border-radius:4px;line-height:1.7;border:1px solid #c0392b;">
-        🔒 <b>一度開始した学習はやり直しできません。</b><br>
-        必ず続きから再開されます。これは学習の公正性を保ち、反復による成績水増しを防ぐためです。<br>
-        途中でやめても、次回は中断した場所からそのまま再開されます。
+        🔒 <b>一度開始した学習はやり直しできません。途中でやめると、次回は中断した場所からの再開となります。</b>
       </div>
     </div>`;
   document.getElementById('resume-yes').onclick = ()=>{
