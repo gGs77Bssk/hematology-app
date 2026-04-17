@@ -346,6 +346,11 @@ const HMAC_SECRET_KEY = 'BloodHemeKoku6-2024-SignatureKey-CHANGE-ME-FOR-PRODUCTI
 const T365_UPLOAD_URL = ''; // 例: 'https://forms.office.com/r/XXXXXXXXXX' または 'https://tokai.sharepoint.com/sites/...'
 function getT365UploadUrl(){
   const override = localStorage.getItem('hematology_t365_upload_url');
+  // Microsoft Forms URLはHTMLファイルを受け付けないため自動的に破棄
+  if(override && /forms\.(office|cloud\.microsoft|microsoft)\.com/i.test(override)){
+    localStorage.removeItem('hematology_t365_upload_url');
+    return T365_UPLOAD_URL || '';
+  }
   return override || T365_UPLOAD_URL || '';
 }
 function setT365UploadUrl(url){
@@ -2683,8 +2688,21 @@ function refreshT365Url(){
   const url = getT365UploadUrl();
   const el = document.getElementById('t365-url-display');
   if(el){
-    if(url) el.innerHTML = `🔗 現在の提出先: <code style="font-size:11px;">${escapeHtml(url)}</code>`;
-    else el.innerHTML = `<span style="color:#c0392b;">⚠️ 提出先URLが未設定です。指導医または教員にURL発行を依頼してください。</span>`;
+    if(url){
+      el.innerHTML = `🔗 現在の提出先: <code style="font-size:11px;">${escapeHtml(url)}</code> <button id="t365-url-inline-clear" style="background:#c0392b;color:#fff;border:none;border-radius:4px;padding:2px 8px;margin-left:6px;cursor:pointer;font-size:11px;">🗑️ 削除</button>`;
+      const btn = document.getElementById('t365-url-inline-clear');
+      if(btn){
+        btn.onclick = ()=>{
+          if(confirm('保存されている提出先URLを削除しますか？\n\n' + url)){
+            setT365UploadUrl('');
+            refreshT365Url();
+            alert('提出先URLを削除しました。');
+          }
+        };
+      }
+    } else {
+      el.innerHTML = `<span style="color:#c0392b;">⚠️ 提出先URLが未設定です。指導医または教員にURL発行を依頼してください。</span>`;
+    }
   }
 }
 refreshT365Url();
