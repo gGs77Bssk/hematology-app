@@ -210,6 +210,7 @@
   <div class="meta"><b>学習ロードマップ</b> <span id="mode-hint">（モード選択中）</span></div>
   <div id="topic-list" class="topic-list"></div>
   <div class="nav-btns">
+    <button id="show-radar" style="background:#2980b9">📈 レーダーチャートを見る</button>
     <button id="show-log" style="background:#8e44ad">📊 解答ログを見る</button>
     <button id="export-report" style="background:#c0392b">📄 HTMLレポートを保存（提出用）</button>
   </div>
@@ -2792,6 +2793,20 @@ document.getElementById('show-log').onclick = ()=>{
   state.showingLog = !state.showingLog;
   renderLogPanel();
 };
+document.getElementById('show-radar').onclick = ()=>{
+  if(state.showingModeSelect || !state.mode){
+    alert('学習モードを選択してから確認できます。');
+    return;
+  }
+  if(state.showingFinalTest){
+    alert('最終確認テストを採点してから確認できます。');
+    return;
+  }
+  state.showingMidRadar = true;
+  state.showingSectionComplete = false;
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+};
 (()=>{const _csvBtn=document.getElementById('export-log'); if(_csvBtn) _csvBtn.onclick = ()=> exportLogCSV().catch(e=>alert('CSV出力に失敗しました: '+e.message));})();
 document.getElementById('export-report').onclick = ()=> exportHtmlReport().catch(e=>alert('レポート出力に失敗しました: '+e.message));
 (()=>{const _sendBtn=document.getElementById('send-log'); if(_sendBtn) _sendBtn.onclick = ()=> sendLogToSupervisor().catch(e=>alert('送信準備に失敗しました: '+e.message));})();
@@ -3383,14 +3398,15 @@ function renderMidRadarScreen(){
       <div class="meta">全体進捗: <b>${completedCount} / ${TOPICS.length}</b> セクション完了<br>赤破線＝75%（弱点閾値）/ 赤番号・赤丸＝弱点セクション</div>
       ${svgChart}
       ${buildScoreTable(scores)}
-      <div style="margin-top:16px;">
-        <button id="back-to-next" style="background:#27ae60;min-height:48px;font-size:15px;padding:12px 28px;">次のセクションへ ▶</button>
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+        <button id="radar-back" style="background:#7f8c8d;min-height:48px;font-size:15px;padding:12px 28px;">◀ 戻る</button>
       </div>
     </div>`;
 
-  document.getElementById('back-to-next').onclick = ()=>{
+  document.getElementById('radar-back').onclick = ()=>{
     state.showingMidRadar = false;
-    nextTopic();
+    render();
+    window.scrollTo({top:0, behavior:'smooth'});
   };
   renderTopicList();
   updateProgress();
