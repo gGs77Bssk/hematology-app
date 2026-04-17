@@ -242,7 +242,8 @@
     <div style="margin-top:6px;">
       <div style="font-weight:bold;color:#7d6608;">🔗 大学 Microsoft 365 でアップロード提出</div>
       <div class="help" style="margin-top:4px;">
-        指導医が設定した <b>Microsoft Forms</b> または <b>SharePoint/Teams</b> のアップロード先に、HTMLレポートを直接提出できます。
+        指導医が設定した <b>SharePoint ドキュメントライブラリ</b>または <b>Teams 課題</b>のアップロード先に、HTMLレポートを直接提出できます。<br>
+        <span style="color:#c0392b;font-size:11px;">※ Microsoft Forms は HTML ファイルを受け付けないため使用できません。</span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
         <button id="btn-t365-upload" style="background:#0078d4;color:#fff;border:none;border-radius:4px;padding:8px 14px;cursor:pointer;font-size:13px;">📤 T365 提出先を開く</button>
@@ -252,41 +253,56 @@
       <div id="t365-url-display" style="font-size:12px;color:#555;margin-top:6px;"></div>
       <div id="t365-config-panel" style="display:none;background:#fff;border:2px solid #d4ac0d;border-radius:6px;padding:14px;margin-top:10px;font-size:12px;line-height:1.7;">
         <div style="font-weight:bold;color:#7d6608;font-size:14px;margin-bottom:6px;">⚙️ 提出先URL設定ガイド（教員用）</div>
+
+        <div style="background:#fadbd8;border-left:5px solid #c0392b;padding:8px 12px;border-radius:4px;margin:8px 0;color:#922b21;font-size:12px;">
+          <b>⚠️ 重要：Microsoft Forms はHTMLファイルを受け付けません</b><br>
+          Forms のファイルアップロードは Word/Excel/PowerPoint/PDF/画像/動画/音声のみ対応しており、<b>.html は非対応</b>のため受付時にエラーになります。<br>
+          本ツールのHTMLレポートを受け付けるには、<b>SharePoint ドキュメントライブラリ</b>または <b>Teams 課題</b>をご利用ください（下記手順）。
+        </div>
+
         <div style="background:#eaf2f8;border-left:5px solid #2980b9;padding:10px 12px;border-radius:4px;margin:8px 0;">
-          <b>📝 Microsoft Forms で提出フォームを作成する手順</b>
+          <b>📁 SharePoint ドキュメントライブラリを作成する手順（推奨）</b>
           <ol style="margin:6px 0 4px 20px;padding:0;">
-            <li><b>大学のMicrosoft 365にサインイン</b>し、<a href="https://forms.office.com" target="_blank" rel="noopener">forms.office.com</a> を開く</li>
-            <li>「<b>新しいフォーム</b>」をクリック</li>
-            <li>タイトル入力：例「血液内科 学習レポート提出」</li>
-            <li>「<b>新規追加</b>」→「<b>ファイルアップロード</b>」を選択
+            <li><b>大学の SharePoint サイト</b>（学部/学科/研究室の既存サイト、または<a href="https://www.office.com/launch/sharepoint" target="_blank" rel="noopener">SharePointスタートページ</a>から新規作成）にアクセス</li>
+            <li>サイト内で「<b>新規</b>」→「<b>ドキュメントライブラリ</b>」を選択</li>
+            <li>名前を入力：例「<code>血液内科レポート2026</code>」→ 作成</li>
+            <li>作成されたライブラリを開き、右上「<b>⚙️ 設定</b>」→「<b>ライブラリの設定</b>」→「<b>その他のライブラリ設定</b>」</li>
+            <li>「<b>ライブラリ権限の管理</b>」で学生グループに「<b>投稿</b>」権限を付与（アップロード可能にする）
               <ul style="margin:2px 0 2px 16px;padding:0;">
-                <li>ファイル数上限: <b>1</b> ／ ファイルサイズ上限: <b>10MB</b> 以上</li>
-                <li>「<b>必須</b>」にチェック</li>
+                <li>学部生全員が含まれる M365 グループまたはセキュリティグループを指定</li>
+                <li>閲覧権限は教員のみに限定（他の学生に見られないように）</li>
               </ul>
             </li>
-            <li>必要に応じて追加の質問を作成：
+            <li>必要に応じて以下の設定を推奨：
               <ul style="margin:2px 0 2px 16px;padding:0;">
-                <li>「テキスト」：学籍番号</li>
-                <li>「テキスト」：氏名</li>
+                <li><b>バージョン履歴</b>を有効化（再提出時の履歴確認用）</li>
+                <li><b>チェックイン/チェックアウト</b>は無効のまま（学生の提出しやすさ優先）</li>
               </ul>
             </li>
-            <li>画面右上の「<b>共有</b>」→「<b>回答を収集</b>」をクリック</li>
-            <li>共有範囲を「<b>自分の組織内のユーザーとゲスト</b>」に設定</li>
-            <li>表示される<b>フォームURL</b>をコピー（例: <code>https://forms.office.com/r/XXXXXXXXXX</code>）</li>
+            <li>ライブラリのトップページに戻り、ブラウザのアドレスバーから<b>URLをコピー</b>
+              <ul style="margin:2px 0 2px 16px;padding:0;">
+                <li>例: <code>https://tokai.sharepoint.com/sites/medicine/Shared%20Documents/Forms/AllItems.aspx</code></li>
+              </ul>
+            </li>
             <li>下の入力欄にそのURLを貼り付けて「保存」</li>
           </ol>
-          <div style="color:#16a085;margin-top:6px;"><b>✅ 提出されたHTMLレポートは</b> OneDrive の「Apps/Microsoft Forms/[フォーム名]/Question」 フォルダに自動保存されます。</div>
+          <div style="color:#16a085;margin-top:6px;"><b>✅ 学生の提出フロー：</b>「📤 T365 提出先を開く」→ 大学アカウントでサインイン → HTMLレポートをドラッグ&ドロップでアップロード</div>
+          <div style="color:#16a085;margin-top:4px;"><b>📌 ファイル名規則（推奨）：</b><code>血液内科学習レポート_[学籍番号]_[YYYYMMDD].html</code>（ツールのデフォルト命名と一致）</div>
         </div>
-        <div style="background:#fadbd8;border-left:5px solid #c0392b;padding:8px 12px;border-radius:4px;margin:8px 0;color:#922b21;">
-          <b>⚠️ 注意事項</b>
-          <ul style="margin:4px 0 4px 18px;padding:0;">
-            <li>大学のM365テナントで<b>Formsのファイルアップロード機能</b>が有効化されている必要があります。無効の場合は情報センターに相談してください。</li>
-            <li>SharePointドキュメントライブラリまたはTeams課題も提出先として設定できます（URL形式であれば何でも可）。</li>
-          </ul>
+
+        <div style="background:#fef9e7;border-left:5px solid #f1c40f;padding:8px 12px;border-radius:4px;margin:8px 0;">
+          <b>💡 代替案：Teams の「課題」機能</b><br>
+          クラスTeamsを既に使っている場合、Teamsの「課題」を作成し、その共有リンクを提出先URLとして設定できます。締切管理や提出状況の確認が容易です。
         </div>
+
+        <div style="background:#ebf5fb;border-left:5px solid #7f8c8d;padding:8px 12px;border-radius:4px;margin:8px 0;font-size:11px;color:#555;">
+          <b>ℹ️ なぜ Forms ではなく SharePoint を使うのか？</b><br>
+          Microsoft Forms のファイルアップロード質問は HTML ファイルを受け付けません（エラー「必要なファイルの種類をアップロードして...」）。SharePoint にはファイル種別の制限がなく、HTMLレポートをそのままアップロードできます。
+        </div>
+
         <div style="margin-top:10px;">
           <label style="font-weight:bold;color:#7d6608;display:block;margin-bottom:4px;">提出先URL <span style="color:#c0392b;">*</span></label>
-          <input type="text" id="t365-config-input" placeholder="https://forms.office.com/r/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d4ac0d;border-radius:4px;font-size:13px;font-family:monospace;">
+          <input type="text" id="t365-config-input" placeholder="https://tokai.sharepoint.com/sites/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d4ac0d;border-radius:4px;font-size:13px;font-family:monospace;">
           <div style="margin-top:8px;display:flex;gap:6px;">
             <button id="t365-config-save" style="background:#27ae60;color:#fff;border:none;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;">💾 保存</button>
             <button id="t365-config-cancel" style="background:#7f8c8d;color:#fff;border:none;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;">キャンセル</button>
@@ -294,16 +310,14 @@
         </div>
       </div>
       <div id="t365-guide" style="display:none;background:#eaf2f8;border-left:5px solid #2980b9;padding:10px 14px;margin-top:8px;border-radius:4px;font-size:12px;line-height:1.7;">
-        <b>📘 T365 提出手順：</b><br>
-        ① <b>HTMLレポートを保存</b>（上の「📄 HTMLレポートを保存」ボタン）<br>
-        ② <b>「📤 T365 提出先を開く」をクリック</b> → 指定されたMicrosoft FormsまたはSharePoint/Teamsページが別タブで開く<br>
-        ③ <b>大学アカウントでサインイン</b> → 表示される指示に従ってHTMLレポートをアップロード<br>
-        ④ 氏名・学籍番号を入力して提出（Formsの場合は自動記録、SharePointの場合は命名規則に従う）<br><br>
-        <b>SharePoint/Teams で提出する場合のファイル名規則</b>：<code>血液内科学習レポート_[学籍番号]_[YYYYMMDD].html</code><br><br>
-        <b>教員向け設定（初回）：</b><br>
-        ・Microsoft Forms で「ファイルアップロード」質問を含むフォームを作成、または SharePoint ドキュメントライブラリを準備<br>
-        ・学生に配布するこのツールの「⚙️ 提出先URL設定」からそのURLを入力 or システム管理者が HTML 内の <code>T365_UPLOAD_URL</code> 定数を編集<br>
-        ・Power Automate で受信時に集計リストへ自動記録可能（詳細は別ドキュメント参照）
+        <b>📘 T365 提出手順（学生用）：</b><br>
+        ① <b>HTMLレポートを保存</b>（上部の「📄 HTMLレポートを保存」ボタン）<br>
+        ② <b>「📤 T365 提出先を開く」をクリック</b> → 指定された SharePoint ドキュメントライブラリ または Teams 課題ページが別タブで開く<br>
+        ③ <b>大学アカウントでサインイン</b> → 表示されるページに HTMLレポートを<b>ドラッグ&ドロップ</b>（またはアップロードボタン）で添付<br>
+        ④ ファイル名を以下の規則に従ってリネーム（任意）：<br>
+        　<code>血液内科学習レポート_[学籍番号]_[YYYYMMDD].html</code><br><br>
+        <b>⚠️ 重要：Microsoft Forms は HTMLファイルを受け付けません</b>。提出先は<b>必ず SharePoint ドキュメントライブラリ</b>または <b>Teams 課題</b>である必要があります。<br><br>
+        <b>教員向け設定（初回）：</b>「⚙️ 提出先URL設定（教員用）」ボタンから SharePoint/Teams のアップロード先URLを設定してください（詳細手順は設定パネル内に記載）。
       </div>
     </div>
   </div>
