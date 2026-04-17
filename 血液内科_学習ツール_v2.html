@@ -212,7 +212,6 @@
   <div class="nav-btns">
     <button id="show-log" style="background:#8e44ad">📊 解答ログを見る</button>
     <button id="export-report" style="background:#c0392b">📄 HTMLレポートを保存（提出用）</button>
-    <button id="reset-progress" style="background:#95a5a6" title="進捗を削除して最初からやり直す">🗑️ 進捗リセット</button>
   </div>
   <div id="log-panel-container"></div>
 
@@ -2399,6 +2398,10 @@ const state = {
   showingFinalTest: false,      // 最終確認テスト中
   showingFinalTestResult: false,// 最終確認テスト結果画面
   finalTest: null,              // 最終確認テストの state/結果
+  // ==== 永続データ（「最初からやり直す」でもクリアされない） ====
+  sessionCount: 1,              // 学習セッション回数（やり直すたびにインクリメント）
+  firstStartedAt: null,         // 最初に学習を開始した日時
+  archivedSessions: [],         // 過去セッションのアーカイブ
 };
 
 /* ===== 解答ログ ===== */
@@ -2444,6 +2447,84 @@ function loadProgress(){
 function clearProgress(){
   try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
 }
+/* 「最初からやり直す」: 履歴を保持したまま現セッションをリセット */
+function restartKeepingHistory(saved){
+  // 保存データを一旦復元
+  if(saved) restoreProgress(saved);
+  // 現セッションのスナップショットをアーカイブ
+  const snapshot = {
+    sessionNumber: state.sessionCount || 1,
+    startedAt: state.currentSessionStartedAt || state.firstStartedAt,
+    endedAt: new Date().toISOString(),
+    completedSections: topicStates.filter(t=>t.completed).length,
+    finalTest: state.finalTest ? {
+      completed: state.finalTest.completed,
+      pct: state.finalTest.pct,
+      correct: state.finalTest.correct,
+      total: state.finalTest.total,
+      durationMin: state.finalTest.durationMin,
+      startedAt: state.finalTest.startedAt,
+      endedAt: state.finalTest.endedAt,
+    } : null,
+    remediationComplete: !!state.remediationComplete,
+    answerLogCount: Object.keys(answerLog).length,
+    firstTryCount: Object.values(answerLog).filter(e=>e.firstTry===true).length,
+  };
+  if(!Array.isArray(state.archivedSessions)) state.archivedSessions = [];
+  state.archivedSessions.push(snapshot);
+  // セッションカウンタ増加
+  state.sessionCount = (state.sessionCount || 1) + 1;
+  // 現セッションの開始時刻更新
+  state.currentSessionStartedAt = new Date().toISOString();
+
+  // === 現セッション固有の状態をリセット（履歴は保持） ===
+  // topicStatesを再抽選
+  for(let i=0; i<topicStates.length; i++){
+    const t = TOPICS[i];
+    if(!t) continue;
+    const allIndices = t.questions.map((_,j)=>j);
+    const selected = shuffle(allIndices).slice(0, Math.min(QUESTIONS_PER_SECTION, allIndices.length));
+    topicStates[i].selectedQuestions = selected.slice();
+    topicStates[i].allQuestions = allIndices.slice();
+    topicStates[i].queue = shuffle(selected);
+    topicStates[i].mastered = 0;
+    topicStates[i].total = selected.length;
+    topicStates[i].completed = false;
+  }
+  // answerLog / remediationLog をクリア（ただし attemptHistory / remediationHistory は保持）
+  Object.keys(answerLog).forEach(k=>delete answerLog[k]);
+  Object.keys(remediationLog).forEach(k=>delete remediationLog[k]);
+
+  // state の現セッション関連フラグをリセット
+  state.topicIdx = 0;
+  state.currentQ = null;
+  state.showingNote = false;
+  state.selected = null;
+  state.answered = false;
+  state.done = false;
+  state.showingLog = false;
+  state.showingSectionComplete = false;
+  state.showingMidRadar = false;
+  state.showingRadar = false;
+  state.showingRemediation = false;
+  state.remediationStarted = false;
+  state.remediationComplete = false;
+  state.remediationQueue = [];
+  state.remediationCurrentIdx = 0;
+  state.remediationMastered = 0;
+  state.showingFinalTest = false;
+  state.showingFinalTestResult = false;
+  state.finalTest = null;
+  // modeは保持（そのままのモードで続行）
+  state.showingModeSelect = false;
+
+  initTopic();
+  saveProgress();
+  alert(`セッション ${snapshot.sessionNumber} をアーカイブしました。\n今回はセッション ${state.sessionCount} 回目として記録されます。\n（過去の履歴はすべてHTMLレポートに残ります）`);
+  render();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
 function restoreProgress(data){
   Object.assign(state, data.state);
   // topicStates: 既に同じ長さで初期化済みなので各要素をマージ
@@ -2676,12 +2757,20 @@ document.getElementById('show-log').onclick = ()=>{
 (()=>{const _csvBtn=document.getElementById('export-log'); if(_csvBtn) _csvBtn.onclick = ()=> exportLogCSV().catch(e=>alert('CSV出力に失敗しました: '+e.message));})();
 document.getElementById('export-report').onclick = ()=> exportHtmlReport().catch(e=>alert('レポート出力に失敗しました: '+e.message));
 (()=>{const _sendBtn=document.getElementById('send-log'); if(_sendBtn) _sendBtn.onclick = ()=> sendLogToSupervisor().catch(e=>alert('送信準備に失敗しました: '+e.message));})();
-document.getElementById('reset-progress').onclick = ()=>{
-  if(confirm('保存されている進捗を削除して最初からやり直しますか？\nこの操作は取り消せません。')){
-    clearProgress();
-    location.reload();
+// 教員用完全リセット：キーボードショートカット (Ctrl+Shift+Alt+T) で発火
+document.addEventListener('keydown', (e)=>{
+  if(e.ctrlKey && e.shiftKey && e.altKey && (e.key==='T' || e.key==='t')){
+    e.preventDefault();
+    const phrase = prompt('⚠️ 教員用 完全リセット機能\n\nすべての学習データ（履歴・解答ログ・最終テスト結果・セッションアーカイブ）を削除します。\n学生に配布する前に自分のテスト履歴を消す場合のみ使用してください。\n\n実行するには「TEACHER RESET ALL」と半角で正確に入力してください。');
+    if(phrase === 'TEACHER RESET ALL'){
+      clearProgress();
+      alert('すべてのデータを消去しました。ページを再読み込みします。');
+      location.reload();
+    } else if(phrase !== null){
+      alert('入力が一致しないためキャンセルしました。');
+    }
   }
-};
+});
 
 /* T365 提出ボタン */
 function refreshT365Url(){
@@ -4227,6 +4316,11 @@ async function exportHtmlReport(){
     remediationHistory: remediationHistory,
     finalTest: finalTest,
     remediationComplete: !!state.remediationComplete,
+    // ==== セッション履歴（やり直し追跡） ====
+    sessionCount: state.sessionCount || 1,
+    firstStartedAt: state.firstStartedAt || null,
+    currentSessionStartedAt: state.currentSessionStartedAt || state.firstStartedAt,
+    archivedSessions: state.archivedSessions || [],
   };
   const json = JSON.stringify(data);
   const sig = await hmacSha256Hex(HMAC_SECRET_KEY, json);
@@ -4260,6 +4354,35 @@ async function exportHtmlReport(){
           <thead><tr><th>セクション</th><th>出題</th><th>正解</th><th>正答率</th></tr></thead>
           <tbody>
             ${finalTest.sectionBreakdown.map(b=>`<tr><td>${escapeHtml(b.title)}</td><td>${b.total}</td><td>${b.correct}</td><td>${b.pct}%</td></tr>`).join('')}
+          </tbody>
+        </table>` : ''}
+    </section>` : '';
+
+  // セッション履歴ブロック（やり直し回数・過去の最終テスト結果など）
+  const sessionCount = data.sessionCount || 1;
+  const firstStarted = data.firstStartedAt;
+  const archived = data.archivedSessions || [];
+  const sessionBlock = (sessionCount > 1 || archived.length > 0) ? `
+    <section>
+      <h2>🔄 セッション履歴（やり直し記録）</h2>
+      <div class="comment-box" style="background:${sessionCount>=3?'#fadbd8':'#fef9e7'};border-left-color:${sessionCount>=3?'#c0392b':'#f1c40f'};">
+        <b>やり直し回数:</b> ${sessionCount - 1} 回 ／ <b>現在のセッション:</b> 第 ${sessionCount} 回目<br>
+        <b>最初の学習開始日時:</b> ${firstStarted ? new Date(firstStarted).toLocaleString('ja-JP') : '不明'}<br>
+        ${sessionCount>=3 ? '<span style="color:#c0392b;"><b>⚠️ やり直しが3回以上です。</b> 繰り返し学習は素晴らしいですが、点数目的の反復の可能性も確認してください。</span>' : ''}
+      </div>
+      ${archived.length > 0 ? `
+        <table class="tbl">
+          <thead><tr><th>セッション#</th><th>開始</th><th>終了</th><th>完了セクション</th><th>最終テスト</th><th>解答数</th><th>一発正解</th></tr></thead>
+          <tbody>
+            ${archived.map(a=>`<tr>
+              <td>第 ${a.sessionNumber} 回</td>
+              <td>${a.startedAt ? new Date(a.startedAt).toLocaleString('ja-JP') : '—'}</td>
+              <td>${a.endedAt ? new Date(a.endedAt).toLocaleString('ja-JP') : '—'}</td>
+              <td>${a.completedSections}/${TOPICS.length}</td>
+              <td>${a.finalTest && a.finalTest.completed ? `${a.finalTest.pct}% (${a.finalTest.correct}/${a.finalTest.total})` : '—'}</td>
+              <td>${a.answerLogCount || 0}</td>
+              <td>${a.firstTryCount || 0}</td>
+            </tr>`).join('')}
           </tbody>
         </table>` : ''}
     </section>` : '';
@@ -4383,6 +4506,8 @@ async function exportHtmlReport(){
 </section>
 
 ${finalTestBlock}
+
+${sessionBlock}
 
 ${info.comment ? `<section><h2>💬 学習者コメント</h2><div class="comment-box">${escapeHtml(info.comment)}</div></section>` : ''}
 
@@ -4781,7 +4906,9 @@ function renderResumeDialog(saved){
         <button id="resume-yes" style="background:#27ae60;min-height:48px;padding:12px 22px;font-size:15px;">▶ 続きから始める</button>
         <button id="resume-no" style="background:#e67e22;min-height:48px;padding:12px 22px;font-size:15px;">🆕 最初からやり直す</button>
       </div>
-      <div class="meta" style="margin-top:14px;font-size:12px;color:#888;">※「最初からやり直す」を選ぶと保存データは削除されます。</div>
+      <div class="meta" style="margin-top:14px;font-size:12px;color:#7d6608;background:#fef9e7;padding:8px 10px;border-radius:4px;line-height:1.6;">
+        ℹ️ 「最初からやり直す」を選んでも、<b>全ての解答履歴・時刻記録・最終確認テスト結果は保持</b>されます（やり直し回数・過去の点数も含めてHTMLレポートに記録されます）。
+      </div>
     </div>`;
   document.getElementById('resume-yes').onclick = ()=>{
     restoreProgress(saved);
@@ -4793,9 +4920,8 @@ function renderResumeDialog(saved){
     render();
   };
   document.getElementById('resume-no').onclick = ()=>{
-    if(confirm('本当に最初からやり直しますか？保存データは削除されます。')){
-      clearProgress();
-      location.reload();
+    if(confirm('最初からやり直しますか？\n\n※解答履歴・時刻記録・過去の最終確認テスト結果はすべて保持されます。\n（やり直し回数も記録されます）')){
+      restartKeepingHistory(saved);
     }
   };
   renderTopicList();
@@ -4807,6 +4933,11 @@ if(TOPICS.length > 0){
   if(saved){
     renderResumeDialog(saved);
   } else {
+    // 初回起動時の永続データ初期化
+    state.firstStartedAt = new Date().toISOString();
+    state.currentSessionStartedAt = state.firstStartedAt;
+    state.sessionCount = 1;
+    state.archivedSessions = [];
     initTopic();
     render();
   }

@@ -313,6 +313,28 @@ function analyzeSuspicious(s){
     }
   }
 
+  // 7. やり直し回数が多い（成績目的の反復の可能性）
+  const sessionCount = s.sessionCount || 1;
+  if(sessionCount >= 5){
+    reasons.push(`⚠️ 学習セッション ${sessionCount}回目（やり直し${sessionCount-1}回）`);
+    score += 25;
+  } else if(sessionCount >= 3){
+    reasons.push(`△ 学習セッション ${sessionCount}回目（やり直し${sessionCount-1}回）`);
+    score += 10;
+  }
+
+  // 8. 過去セッションと比べて最終テスト成績が急上昇（反復による記憶）
+  const archived = s.archivedSessions || [];
+  const pastFinalTests = archived.filter(a=>a.finalTest && a.finalTest.completed).map(a=>a.finalTest.pct);
+  if(pastFinalTests.length > 0 && s.finalTest && s.finalTest.completed){
+    const avgPast = pastFinalTests.reduce((a,b)=>a+b,0)/pastFinalTests.length;
+    const improvement = s.finalTest.pct - avgPast;
+    if(improvement >= 30){
+      reasons.push(`⚠️ 最終テスト成績が過去平均から ${Math.round(improvement)}ポイント急上昇（${Math.round(avgPast)}% → ${s.finalTest.pct}%）`);
+      score += 20;
+    }
+  }
+
   // 6. 全問一発正解かつ解答時間が短い(疑惑増幅)
   const firstTryPct = (s.answerLog||[]).length>0
     ? Math.round((s.summary.firstTry||0) / s.answerLog.length * 100) : 0;
@@ -558,6 +580,26 @@ function showStudentDetail(s){
           <tbody>${remEntries.slice(0,100).map(e=>`<tr><td>${esc(e.topicTitle)}</td><td>${esc(e.name)}</td><td style="text-align:center;">${e.wrongCount}</td><td style="text-align:center;">${e.firstTry?'★':'—'}</td><td style="text-align:center;">${e.masteredAt?'⭕':'❌'}</td></tr>`).join('')}</tbody>
         </table>
       </details>
+    </div>` : ''}
+
+    ${(s.sessionCount && s.sessionCount > 1) || (s.archivedSessions && s.archivedSessions.length > 0) ? `
+    <div class="detail-section">
+      <h3>🔄 セッション履歴（やり直し記録）</h3>
+      <div style="background:${s.sessionCount>=3?'#fadbd8':'#fef9e7'};padding:10px 14px;border-radius:6px;border-left:4px solid ${s.sessionCount>=3?'#c0392b':'#f1c40f'};">
+        <b>やり直し回数:</b> ${(s.sessionCount||1)-1} 回 ／ <b>現在のセッション:</b> 第 ${s.sessionCount||1} 回目<br>
+        <b>最初の学習開始:</b> ${s.firstStartedAt ? new Date(s.firstStartedAt).toLocaleString('ja-JP') : '—'}
+      </div>
+      ${(s.archivedSessions||[]).length > 0 ? `
+        <table style="margin-top:8px;"><thead><tr><th>回</th><th>開始</th><th>終了</th><th>完了数</th><th>最終テスト</th><th>一発正解</th></tr></thead>
+          <tbody>${s.archivedSessions.map(a=>`<tr>
+            <td>第${a.sessionNumber}回</td>
+            <td>${a.startedAt?new Date(a.startedAt).toLocaleDateString('ja-JP'):'—'}</td>
+            <td>${a.endedAt?new Date(a.endedAt).toLocaleDateString('ja-JP'):'—'}</td>
+            <td>${a.completedSections}/${s.topics.length}</td>
+            <td>${a.finalTest&&a.finalTest.completed?`${a.finalTest.pct}%`:'—'}</td>
+            <td>${a.firstTryCount||0}/${a.answerLogCount||0}</td>
+          </tr>`).join('')}</tbody>
+        </table>` : ''}
     </div>` : ''}
 
     ${s._suspiciousScore && s._suspiciousScore.score > 0 ? `
