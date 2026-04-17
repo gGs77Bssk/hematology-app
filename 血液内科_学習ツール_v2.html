@@ -303,8 +303,9 @@
         <div style="margin-top:10px;">
           <label style="font-weight:bold;color:#7d6608;display:block;margin-bottom:4px;">提出先URL <span style="color:#c0392b;">*</span></label>
           <input type="text" id="t365-config-input" placeholder="https://tokai.sharepoint.com/sites/..." style="width:100%;box-sizing:border-box;padding:8px 10px;border:1px solid #d4ac0d;border-radius:4px;font-size:13px;font-family:monospace;">
-          <div style="margin-top:8px;display:flex;gap:6px;">
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;">
             <button id="t365-config-save" style="background:#27ae60;color:#fff;border:none;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;">💾 保存</button>
+            <button id="t365-config-clear" style="background:#c0392b;color:#fff;border:none;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;" title="保存されているURLを削除して未設定状態に戻す">🗑️ 保存済みURLを削除</button>
             <button id="t365-config-cancel" style="background:#7f8c8d;color:#fff;border:none;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:13px;">キャンセル</button>
           </div>
         </div>
@@ -2730,6 +2731,19 @@ document.getElementById('t365-config-save').onclick = ()=>{
 };
 document.getElementById('t365-config-cancel').onclick = ()=>{
   document.getElementById('t365-config-panel').style.display = 'none';
+};
+document.getElementById('t365-config-clear').onclick = ()=>{
+  const cur = getT365UploadUrl();
+  if(!cur){
+    alert('保存されている提出先URLはありません。');
+    return;
+  }
+  if(confirm('保存されている提出先URLを削除しますか？\n\n現在の設定:\n' + cur + '\n\n削除すると提出先は「未設定」に戻ります。')){
+    setT365UploadUrl('');
+    refreshT365Url();
+    document.getElementById('t365-config-input').value = '';
+    alert('提出先URLを削除しました。');
+  }
 };
 
 /* ===== 進捗更新 ===== */
