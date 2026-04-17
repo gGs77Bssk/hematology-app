@@ -113,7 +113,7 @@
   <div style="font-size:12px;color:#666;">セクション番号を横軸、学生を縦軸に配置。赤いセル＝弱点、緑＝得意。セルにマウスオーバーで詳細。</div>
   <div id="heatmap"></div>
 
-  <h2>⚠️ 要支援学生（一発正解率 &lt; 60%）</h2>
+  <h2>⚠️ 要支援学生（一発正解率 &lt; 75%）</h2>
   <div id="at-risk-list"></div>
 </div>
 
@@ -292,7 +292,7 @@ function renderTable(filter){
   });
   tbody.innerHTML = arr.map(s=>{
     const firstTryPct = getFirstTryPct(s);
-    let cls = firstTryPct<60?'weak':(firstTryPct>=85?'strong':'');
+    let cls = firstTryPct<75?'weak':(firstTryPct>=90?'strong':'');
     let sigCell, rowExtraStyle='';
     if(s._verified === true){
       sigCell = '<span title="HMAC-SHA256 署名検証OK（改ざんなし）" style="color:#27ae60;">✅ 正当</span>';
@@ -378,7 +378,7 @@ function showStudentDetail(s){
     <div class="detail-section">
       <h3>📊 サマリー</h3>
       <span class="kpi-mini">完了セクション: <b>${summary.completedSections||0}/${s.topics.length}</b></span>
-      <span class="kpi-mini">一発正解率: <b style="color:${firstTryPct>=75?'#27ae60':firstTryPct<60?'#c0392b':'#e67e22'};">${firstTryPct}%</b></span>
+      <span class="kpi-mini">一発正解率: <b style="color:${firstTryPct>=75?'#27ae60':'#c0392b'};">${firstTryPct}%</b></span>
       <span class="kpi-mini">累積正答率: <b>${summary.accuracy||0}%</b></span>
       <span class="kpi-mini">総試行回数: <b>${summary.totalAttempts||0}</b></span>
       <span class="kpi-mini">弱点セクション: <b style="color:${weakSections.length>0?'#c0392b':'#27ae60'};">${weakSections.length}</b></span>
@@ -597,7 +597,7 @@ function renderHeatmap(){
 }
 
 function renderAtRisk(){
-  const risky = students.filter(s=>getFirstTryPct(s)<60);
+  const risky = students.filter(s=>getFirstTryPct(s)<75);
   const el = document.getElementById('at-risk-list');
   if(risky.length===0){ el.innerHTML = '<div style="color:#27ae60;">該当する学生はいません。</div>'; return; }
   el.innerHTML = `<table><thead><tr><th>学籍番号</th><th>氏名</th><th>一発正解率</th><th>弱点セクション（上位5）</th></tr></thead><tbody>${
