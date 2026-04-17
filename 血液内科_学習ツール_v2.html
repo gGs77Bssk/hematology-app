@@ -218,16 +218,14 @@
   <div id="log-panel-container"></div>
 
   <div class="submit-form">
-    <div style="font-weight:bold;color:#7d6608;margin-bottom:4px">📧 指導医に学習ログを提出する</div>
+    <div style="font-weight:bold;color:#7d6608;margin-bottom:4px">📄 指導医に学習レポートを提出する</div>
 
     <div style="background:#fadbd8;border:2px solid #c0392b;border-radius:6px;padding:10px 12px;margin:8px 0;font-size:12px;color:#922b21;line-height:1.6;">
       <b>⚠️ 個人情報保護のための重要事項（必ずお読みください）</b><br>
-      本フォームでは<b>学籍番号・氏名・学習成績</b>を取り扱います。以下を必ず遵守してください。
+      学籍番号・氏名・学習成績を含みます。以下を必ず遵守してください。
       <ol style="margin:6px 0 4px 18px;padding:0;">
-        <li><b>送信元・送信先ともに必ず大学発行のメールアカウント</b>（例: <code>○○@tokai.ac.jp</code>）をご利用ください。</li>
-        <li><b>送信先は必ず指導医の大学メールアドレス</b>（<code>tokai.ac.jp</code>）であることを確認してください。</li>
-        <li>送信完了後、ダウンロードフォルダの<b>HTMLレポートファイル（CSV出力した場合はそれも）は速やかに削除</b>してください（共有PC利用時は特に注意）。</li>
-        <li>宛先を誤入力すると、第三者に氏名・成績が届いてしまいます。<b>送信前にアドレスを必ず確認</b>してください。</li>
+        <li>提出は<b>大学の Microsoft 365 環境</b>（Forms / SharePoint / Teams）で行い、必ず<b>大学アカウントでサインイン</b>した状態でアップロードしてください。</li>
+        <li>提出完了後、ダウンロードフォルダの<b>HTMLレポートファイル（CSV出力した場合はそれも）は速やかに削除</b>してください（共有PC利用時は特に注意）。</li>
       </ol>
     </div>
 
@@ -237,32 +235,13 @@
     <input type="text" id="student-name" placeholder="例: 山田 太郎" autocomplete="off">
     <label>所属 / 学年(任意)</label>
     <input type="text" id="student-affiliation" placeholder="例: ○○大学医学部 5年" autocomplete="off">
-    <label>指導医メールアドレス <span style="color:#c0392b">*</span>
-      <span style="font-weight:normal;font-size:11px;color:#c0392b;">（必ず <code>@tokai.ac.jp</code> ドメイン）</span>
-    </label>
-    <input type="email" id="supervisor-email" placeholder="supervisor@tokai.ac.jp" autocomplete="off">
-    <label>使用するメールサービス</label>
-    <select id="mail-service" style="width:100%;padding:6px 8px;border:1px solid #d4ac0d;border-radius:4px;font-size:13px;">
-      <option value="office365" selected>大学 Outlook / Microsoft 365 (推奨)</option>
-      <option value="gmail">大学 Google Workspace (推奨)</option>
-      <option value="other">その他の大学メール</option>
-    </select>
     <label>コメント(任意)</label>
     <textarea id="student-comment" placeholder="つまずいた項目、質問などを自由にご記入ください"></textarea>
-    <button id="send-log" class="btn-send">📧 HTMLレポートをメールで指導医に提出する</button>
-    <div class="help">
-      <b>メール送信手順（Microsoftサインイン不要）:</b><br>
-      ① 上のボタンを押すと、<b>HTMLレポート</b>（提出用ファイル）がダウンロードされ、同時に送信内容のモーダルが開きます。<br>
-      ② モーダル内の「📋 宛先コピー」「📋 件名コピー」「📋 本文コピー」ボタンで必要な内容を順にコピー。<br>
-      ③ <b>大学のメールサービス</b>で新規作成 → 貼り付け。<br>
-      ④ ダウンロードされた<b>HTMLレポートファイルを添付</b>して送信 → 完了。<br>
-      ⑤ 送信完了後、<b>ダウンロードフォルダのHTMLレポートファイルを削除</b>してください。<br>
-      <span style="color:#16a085"><b>✅ このツール自体は外部への通信を一切行いません（完全オフライン動作）。</b></span><br>
-      <span style="color:#c0392b;font-size:12px"><b>🔒 改ざん検出署名(HMAC-SHA256)がHTMLレポート内に自動付加されます。</b>手動で編集すると指導医側の集約解析ツールで検出されます。</span>
-    </div>
-
-    <div style="margin-top:14px;border-top:1px dashed #d4ac0d;padding-top:10px;">
-      <div style="font-weight:bold;color:#7d6608;">🔗 大学 Microsoft 365 でアップロード提出（推奨・半自動）</div>
+    <!-- 互換性維持のため残置（内部処理で参照される可能性） -->
+    <input type="hidden" id="supervisor-email" value="">
+    <input type="hidden" id="mail-service" value="office365">
+    <div style="margin-top:6px;">
+      <div style="font-weight:bold;color:#7d6608;">🔗 大学 Microsoft 365 でアップロード提出</div>
       <div class="help" style="margin-top:4px;">
         指導医が設定した <b>Microsoft Forms</b> または <b>SharePoint/Teams</b> のアップロード先に、HTMLレポートを直接提出できます。
       </div>
@@ -2628,7 +2607,7 @@ document.getElementById('show-log').onclick = ()=>{
 };
 document.getElementById('export-log').onclick = ()=> exportLogCSV().catch(e=>alert('CSV出力に失敗しました: '+e.message));
 document.getElementById('export-report').onclick = ()=> exportHtmlReport().catch(e=>alert('レポート出力に失敗しました: '+e.message));
-document.getElementById('send-log').onclick = ()=> sendLogToSupervisor().catch(e=>alert('送信準備に失敗しました: '+e.message));
+(()=>{const _sendBtn=document.getElementById('send-log'); if(_sendBtn) _sendBtn.onclick = ()=> sendLogToSupervisor().catch(e=>alert('送信準備に失敗しました: '+e.message));})();
 document.getElementById('reset-progress').onclick = ()=>{
   if(confirm('保存されている進捗を削除して最初からやり直しますか？\nこの操作は取り消せません。')){
     clearProgress();
